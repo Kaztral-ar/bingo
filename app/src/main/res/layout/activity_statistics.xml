@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Statistics"
+        android:textColor="@color/accent_gold"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="20dp" />
+
+    <TextView android:id="@+id/rowGamesPlayed" style="@style/StatRow" />
+    <TextView android:id="@+id/rowGamesWon" style="@style/StatRow" />
+    <TextView android:id="@+id/rowGamesLost" style="@style/StatRow" />
+    <TextView android:id="@+id/rowComputerWins" style="@style/StatRow" />
+    <TextView android:id="@+id/rowOnlineWins" style="@style/StatRow" />
+    <TextView android:id="@+id/rowBingoCount" style="@style/StatRow" />
+    <TextView android:id="@+id/rowFastestWin" style="@style/StatRow" />
+
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="24dp"
+        android:text="🏠 Home"
+        android:backgroundTint="@color/bg_panel"
+        android:textColor="@color/text_primary" />
+
+</LinearLayout>

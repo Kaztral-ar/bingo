@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enter 6-digit Room Code"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp"
+        android:layout_marginBottom="16dp" />
+
+    <EditText
+        android:id="@+id/editRoomCode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:maxLength="6"
+        android:gravity="center"
+        android:textSize="28sp"
+        android:letterSpacing="0.2"
+        android:textColor="@color/text_primary"
+        android:backgroundTint="@color/accent_gold"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnJoin"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="JOIN ROOM"
+        android:textColor="@color/bg_deep"
+        android:backgroundTint="@color/accent_mint" />
+
+    <TextView
+        android:id="@+id/textJoinError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/accent_coral"
+        android:gravity="center"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>

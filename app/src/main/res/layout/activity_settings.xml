@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Settings"
+        android:textColor="@color/accent_gold"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="20dp" />
+
+    <LinearLayout style="@style/SettingRow">
+        <TextView style="@style/SettingLabel" android:text="🔊 Sound" />
+        <Switch android:id="@+id/switchSound" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/SettingRow">
+        <TextView style="@style/SettingLabel" android:text="📳 Vibration" />
+        <Switch android:id="@+id/switchVibration" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/SettingRow">
+        <TextView style="@style/SettingLabel" android:text="🔢 Auto Mark" />
+        <Switch android:id="@+id/switchAutoMark" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/SettingRow">
+        <TextView style="@style/SettingLabel" android:text="🔔 Number Call Sound" />
+        <Switch android:id="@+id/switchCallSound" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/SettingRow">
+        <TextView style="@style/SettingLabel" android:text="🎨 Dark Theme" />
+        <Switch android:id="@+id/switchDarkTheme" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnBack"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="24dp"
+        android:text="🏠 Home"
+        android:backgroundTint="@color/bg_panel"
+        android:textColor="@color/text_primary" />
+
+</LinearLayout>

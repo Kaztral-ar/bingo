@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:name=".BingoApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Bingo125"
+        android:supportsRtl="true">
+
+        <!-- AdMob App ID - TEST ID, replace before release -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+
+        <activity android:name=".MainActivity" android:exported="true" android:theme="@style/Theme.Bingo125">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".GameModeActivity" android:exported="false" />
+        <activity android:name=".OnlineMenuActivity" android:exported="false" />
+        <activity android:name=".ComputerGameActivity" android:exported="false" />
+        <activity android:name=".OnlineGameActivity" android:exported="false" />
+        <activity android:name=".CreateRoomActivity" android:exported="false" />
+        <activity android:name=".JoinRoomActivity" android:exported="false" />
+        <activity android:name=".LobbyActivity" android:exported="false" />
+        <activity android:name=".HowToPlayActivity" android:exported="false" />
+        <activity android:name=".StatisticsActivity" android:exported="false" />
+        <activity android:name=".SettingsActivity" android:exported="false" />
+        <activity android:name=".ResultActivity" android:exported="false" />
+
+    </application>
+</manifest>

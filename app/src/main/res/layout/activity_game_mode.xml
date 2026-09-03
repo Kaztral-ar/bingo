@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose Game Mode"
+        android:textColor="@color/text_primary"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp" />
+
+    <Button
+        android:id="@+id/btnVsComputer"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:text="🤖  VS Computer"
+        android:textSize="18sp"
+        android:textColor="@color/bg_deep"
+        android:backgroundTint="@color/accent_mint"
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/btnOnline"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:text="👥  2 Player Online"
+        android:textSize="18sp"
+        android:textColor="@color/bg_deep"
+        android:backgroundTint="@color/accent_coral" />
+
+</LinearLayout>

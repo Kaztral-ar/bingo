@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_deep"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/textTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BINGO"
+        android:textColor="@color/accent_gold"
+        android:textSize="52sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.05" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="1–25"
+        android:textColor="@color/text_primary"
+        android:textSize="28sp"
+        android:layout_marginTop="4dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="5 × 5 Bingo"
+        android:textColor="@color/text_secondary"
+        android:textSize="16sp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="48dp" />
+
+    <Button
+        android:id="@+id/btnNewGame"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:text="🎮  New Game"
+        android:textSize="18sp"
+        android:textColor="@color/bg_deep"
+        android:backgroundTint="@color/accent_gold"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnHowToPlay"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="📖  How to Play"
+        android:textColor="@color/text_primary"
+        android:backgroundTint="@color/bg_panel"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnStatistics"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="📊  Statistics"
+        android:textColor="@color/text_primary"
+        android:backgroundTint="@color/bg_panel"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:text="⚙️  Settings"
+        android:textColor="@color/text_primary"
+        android:backgroundTint="@color/bg_panel" />
+
+    <FrameLayout
+        android:id="@+id/bannerContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp" />
+
+</LinearLayout>
