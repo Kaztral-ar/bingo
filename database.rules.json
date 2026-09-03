@@ -3,32 +3,24 @@
     "rooms": {
       "$roomCode": {
         ".read": "auth != null",
-
         "host": {
           ".write": "auth != null && !data.exists()"
         },
-
         "status": {
           ".write": "auth != null && data.val() === 'waiting' && newData.val() === 'filling' && root.child('rooms').child($roomCode).child('host').val() === auth.uid",
           ".validate": "newData.isString()"
         },
-
-        "fillDeadline": {
-          ".write": false
-        },
-
+        "fillDeadline": { ".write": false },
         "calledNumbers": { ".write": false },
-        "officialSequence": { ".read": false, ".write": false },
+        "officialSequence": { ".write": false },
         "currentIndex": { ".write": false },
         "winnerUid": { ".write": false },
         "winningPattern": { ".write": false },
-
         "claims": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'calling'"
           }
         },
-
         "players": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting'",
@@ -50,6 +42,12 @@
             }
           }
         }
+      }
+    },
+    "privateSequences": {
+      "$roomCode": {
+        ".read": false,
+        ".write": false
       }
     }
   }
