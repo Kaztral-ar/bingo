@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Bingo 1–25",
-    "slug": "bingo125",
+    "slug": "bingo",
     "version": "1.0.0",
     "android": {
       "package": "com.bingo125",
