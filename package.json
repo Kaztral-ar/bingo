@@ -1,0 +1,8 @@
+{
+  "name": "bingo125",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:functions": "cd functions && npm install"
+  }
+}
