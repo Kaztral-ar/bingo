@@ -3,6 +3,7 @@
     "name": "Bingo 1–25",
     "slug": "bingo",
     "version": "1.0.0",
+    "platforms": ["android"],
     "android": {
       "package": "com.bingo125",
       "versionCode": 1
