@@ -6,7 +6,7 @@
     "platforms": ["android"],
     "extra": {
       "eas": {
-        "projectId": "8f5db0b9-513f-4b2f-802b-683e2158f9f8"
+        "projectId": "72c53c8f-bea0-4738-8800-d7194dacbdcb"
       }
     },
     "android": {
