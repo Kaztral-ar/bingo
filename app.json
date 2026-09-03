@@ -4,6 +4,11 @@
     "slug": "bingo",
     "version": "1.0.0",
     "platforms": ["android"],
+    "extra": {
+      "eas": {
+        "projectId": "8f5db0b9-513f-4b2f-802b-683e2158f9f8"
+      }
+    },
     "android": {
       "package": "com.bingo125",
       "versionCode": 1
