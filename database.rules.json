@@ -2,41 +2,51 @@
   "rules": {
     "rooms": {
       "$roomCode": {
-        // Anyone signed in (anonymous auth is fine) can read a room to join/spectate it.
         ".read": "auth != null",
 
         "host": {
           ".write": "auth != null && !data.exists()"
         },
+
         "status": {
-          // Only the host can move the room out of "waiting"; the calling-phase
-          // and finished transitions are written exclusively by Cloud Functions
-          // using the Admin SDK, which bypasses these rules entirely.
-          ".write": "auth != null && root.child('rooms').child($roomCode).child('host').val() === auth.uid"
+          ".write": "auth != null && data.val() === 'waiting' && newData.val() === 'filling' && root.child('rooms').child($roomCode).child('host').val() === auth.uid",
+          ".validate": "newData.isString()"
         },
+
         "fillDeadline": {
-          ".write": "auth != null && root.child('rooms').child($roomCode).child('host').val() === auth.uid"
+          ".write": false
         },
+
         "calledNumbers": { ".write": false },
+        "officialSequence": { ".read": false, ".write": false },
         "currentIndex": { ".write": false },
         "winnerUid": { ".write": false },
         "winningPattern": { ".write": false },
+
         "claims": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'calling'"
           }
         },
 
         "players": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting'",
+            ".validate": "newData.hasChildren(['name','ready','cardLocked']) && newData.child('name').isString() && newData.child('ready').isBoolean() && newData.child('cardLocked').isBoolean()",
             "card": {
-              // A player may only write their own card while the room is still filling,
-              // and never again once it's locked.
               ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'filling' && root.child('rooms').child($roomCode).child('players').child($uid).child('cardLocked').val() !== true"
+            },
+            "cardLocked": {
+              ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'filling'"
             },
             "marked": {
               ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'calling'"
+            },
+            "name": {
+              ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting'"
+            },
+            "ready": {
+              ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting'"
             }
           }
         }
