@@ -1,6 +1,11 @@
 plugins {
     id 'com.android.application'
-    id 'com.google.gms.google-services'
+}
+
+// Firebase is optional for the offline game. When google-services.json is
+// present, the Google Services plugin is applied automatically for online play.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
 }
 
 android {
