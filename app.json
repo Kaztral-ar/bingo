@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bingo 1–25",
     "slug": "bingo",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "platforms": ["android"],
     "extra": {
       "eas": {
@@ -11,7 +11,7 @@
     },
     "android": {
       "package": "com.bingo125",
-      "versionCode": 1
+      "versionCode": 2
     }
   }
 }
