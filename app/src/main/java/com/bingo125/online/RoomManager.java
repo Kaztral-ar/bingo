@@ -12,14 +12,7 @@ import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Client-side room operations. Anything security-sensitive (the official
- * shuffled call sequence, deciding who won) is intentionally NOT done here —
- * it happens in Cloud Functions (/functions/index.js) which the database
- * rules trust and the client does not. This class only ever writes to the
- * fields the rules allow a client to touch: presence, readiness, and its own
- * card during the filling phase.
- */
+/** Client-side room operations. The server remains authoritative for timing, calls and winners. */
 public class RoomManager {
 
     public interface RoomListener {
@@ -31,34 +24,52 @@ public class RoomManager {
     private ValueEventListener activeListener;
     private String activeRoomCode;
 
-    /** Generates a 6-digit room code and creates the room, with the caller as host. */
     public void createRoom(String uid, String displayName, RoomListener callback) {
-        String roomCode = generateRoomCode();
-        DatabaseReference roomRef = firebase.roomRef(roomCode);
-
-        Map<String, Object> room = new HashMap<>();
-        room.put("host", uid);
-        room.put("status", "waiting");
-        room.put("createdAt", ServerValue.TIMESTAMP);
-
-        Map<String, Object> player = new HashMap<>();
-        player.put("name", displayName);
-        player.put("ready", true);
-        player.put("cardLocked", false);
-
-        Map<String, Object> players = new HashMap<>();
-        players.put(uid, player);
-        room.put("players", players);
-
-        roomRef.setValue(room)
-                .addOnSuccessListener(v -> listenToRoom(roomCode, callback))
-                .addOnFailureListener(e -> callback.onError("Could not create room: " + e.getMessage()));
+        createRoomAttempt(uid, displayName, callback, 0);
     }
 
-    /** Joins an existing room by code, if it exists, isn't full, and hasn't started. */
-    public void joinRoom(String roomCode, String uid, String displayName, RoomListener callback) {
-        DatabaseReference roomRef = firebase.roomRef(roomCode);
+    private void createRoomAttempt(String uid, String displayName, RoomListener callback, int attempt) {
+        if (attempt >= 5) {
+            callback.onError("Could not create a unique room. Please try again.");
+            return;
+        }
 
+        String roomCode = generateRoomCode();
+        DatabaseReference roomRef = firebase.roomRef(roomCode);
+        roomRef.get().addOnSuccessListener(existing -> {
+            if (existing.exists()) {
+                createRoomAttempt(uid, displayName, callback, attempt + 1);
+                return;
+            }
+
+            Map<String, Object> room = new HashMap<>();
+            room.put("host", uid);
+            room.put("status", "waiting");
+            room.put("createdAt", ServerValue.TIMESTAMP);
+
+            Map<String, Object> player = new HashMap<>();
+            player.put("name", displayName == null ? "Player" : displayName);
+            player.put("ready", true);
+            player.put("cardLocked", false);
+
+            Map<String, Object> players = new HashMap<>();
+            players.put(uid, player);
+            room.put("players", players);
+
+            roomRef.setValue(room)
+                    .addOnSuccessListener(v -> listenToRoom(roomCode, callback))
+                    .addOnFailureListener(e -> callback.onError("Could not create room: " + e.getMessage()));
+        }).addOnFailureListener(e -> callback.onError("Network error: " + e.getMessage()));
+    }
+
+    /** Joins an existing waiting room. The server/rules remain authoritative. */
+    public void joinRoom(String roomCode, String uid, String displayName, RoomListener callback) {
+        if (roomCode == null || !roomCode.matches("\\d{6}")) {
+            callback.onError("Enter a valid 6-digit room code.");
+            return;
+        }
+
+        DatabaseReference roomRef = firebase.roomRef(roomCode);
         roomRef.get().addOnSuccessListener(snapshot -> {
             if (!snapshot.exists()) {
                 callback.onError("Room not found. Check the code and try again.");
@@ -77,7 +88,7 @@ public class RoomManager {
             }
 
             Map<String, Object> player = new HashMap<>();
-            player.put("name", displayName);
+            player.put("name", displayName == null ? "Player" : displayName);
             player.put("ready", true);
             player.put("cardLocked", false);
 
@@ -87,21 +98,12 @@ public class RoomManager {
         }).addOnFailureListener(e -> callback.onError("Network error: " + e.getMessage()));
     }
 
-    /** Host-only: begins the 2-minute filling phase for everyone in the room. */
+    /** Host-only: starts the filling phase. The Cloud Function stamps the real deadline. */
     public void startGame(String roomCode) {
         DatabaseReference roomRef = firebase.roomRef(roomCode);
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("status", "filling");
-        // fillDeadline = now + 120s, stamped with the SERVER clock so both
-        // devices count down against the same authority (spec section 18).
-        updates.put("fillDeadline", ServerValue.TIMESTAMP);
-        roomRef.updateChildren(updates);
-        // A Cloud Function (onRoomStatusChange) reads this write, adds 120000ms
-        // to the server timestamp, and stores the real deadline + triggers the
-        // auto-fill/calling phase transition — see functions/index.js.
+        roomRef.child("status").setValue("filling");
     }
 
-    /** Writes one placed number into the caller's own card during the filling phase. */
     public void placeNumber(String roomCode, String uid, int row, int col, int number, int[][] fullCardSoFar) {
         firebase.playerRef(roomCode, uid).child("card").setValue(fullCardSoFar);
     }
@@ -110,17 +112,10 @@ public class RoomManager {
         firebase.playerRef(roomCode, uid).child("cardLocked").setValue(true);
     }
 
-    /** Writes a mark for a number the client believes was called; the server re-validates it. */
     public void markNumber(String roomCode, String uid, boolean[][] fullMarkedGrid) {
         firebase.playerRef(roomCode, uid).child("marked").setValue(fullMarkedGrid);
     }
 
-    /**
-     * Submits a bingo claim for server verification. The server (Cloud Function
-     * `claimBingo`) independently checks the player's stored card, the official
-     * called-numbers list, and the winning pattern before accepting it — the
-     * client's own belief that it won is never trusted (spec sections 9, 22).
-     */
     public void claimBingo(String roomCode, String uid) {
         firebase.roomRef(roomCode).child("claims").child(uid).setValue(ServerValue.TIMESTAMP);
     }
@@ -131,6 +126,10 @@ public class RoomManager {
         activeListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (!snapshot.exists()) {
+                    callback.onError("Room no longer exists.");
+                    return;
+                }
                 RoomModel room = RoomMapper.fromSnapshot(roomCode, snapshot);
                 callback.onRoomUpdated(room);
             }
@@ -157,7 +156,6 @@ public class RoomManager {
 
     private String generateRoomCode() {
         SecureRandom rng = new SecureRandom();
-        int code = 100000 + rng.nextInt(900000); // always 6 digits
-        return String.valueOf(code);
+        return String.valueOf(100000 + rng.nextInt(900000));
     }
 }
