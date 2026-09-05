@@ -17,13 +17,17 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 /**
  * Wraps Google Mobile Ads: banner on menu/result screens, interstitial between
  * completed games, optional rewarded ad for a non-essential bonus.
- * Uses Google's published TEST ad unit IDs — swap for real IDs before release,
- * and add the consent/UMP flow before going live (see README).
+ *
+ * Banner uses the AdMob banner unit supplied for this app. Interstitial and
+ * rewarded units remain Google's test IDs until production units are supplied.
+ * Add the app's real AdMob APPLICATION_ID to AndroidManifest.xml before release.
  */
 public class AdManager {
 
+    // AdMob banner unit supplied by the app owner.
+    public static final String BANNER_AD_UNIT_ID = "ca-app-pub-6906509746436244/2220867988";
+
     // Google test ad unit IDs (safe for development).
-    public static final String BANNER_TEST_ID = "ca-app-pub-3940256099942544/6300978111";
     public static final String INTERSTITIAL_TEST_ID = "ca-app-pub-3940256099942544/1033173712";
     public static final String REWARDED_TEST_ID = "ca-app-pub-3940256099942544/5224354917";
 
@@ -37,7 +41,7 @@ public class AdManager {
     public void attachBanner(Activity activity, FrameLayout container) {
         AdView adView = new AdView(activity);
         adView.setAdSize(AdSize.BANNER);
-        adView.setAdUnitId(BANNER_TEST_ID);
+        adView.setAdUnitId(BANNER_AD_UNIT_ID);
         container.removeAllViews();
         container.addView(adView, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
