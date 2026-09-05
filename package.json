@@ -5,8 +5,5 @@
   "scripts": {
     "build:functions": "cd functions && npm install",
     "eas-build-pre-install": "if [ ! -d android ] && [ -d app ]; then mkdir -p android && mv app android/app && mv build.gradle android/build.gradle && mv settings.gradle android/settings.gradle && mv gradle.properties android/gradle.properties; fi; if [ -d android ] && [ ! -f android/gradlew ]; then curl -fsSL https://services.gradle.org/distributions/gradle-8.11.1-bin.zip -o /tmp/gradle.zip && unzip -q /tmp/gradle.zip -d /tmp && /tmp/gradle-8.11.1/bin/gradle -p android wrapper --gradle-version 8.11.1 && chmod +x android/gradlew; fi"
-  },
-  "dependencies": {
-    "expo": "^57.0.19"
   }
 }
