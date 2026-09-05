@@ -2,6 +2,7 @@ package com.bingo125;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -18,7 +19,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.bingo125.game.BingoCard;
 import com.bingo125.game.BingoGame;
-import com.bingo125.game.BingoValidator;
 import com.bingo125.game.ComputerPlayer;
 import com.bingo125.game.GameState;
 import com.bingo125.game.Player;
@@ -27,16 +27,26 @@ import com.bingo125.util.PrefsManager;
 import com.bingo125.util.SoundManager;
 import com.bingo125.util.StatsManager;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Offline VS Computer Bingo.
  * Both players fill their cards during the same 2-minute setup window.
  * After setup, the players choose who calls first. Calls alternate: the caller
  * calls one number, both cards automatically mark it, then the other player calls.
+ *
+ * Bingo scoring follows the normal B-I-N-G-O line system: every newly completed
+ * row, column, or diagonal is crossed/cut and awards the next letter. Completing
+ * one line does NOT end the game. The first player to complete five distinct lines
+ * (B-I-N-G-O) wins.
  */
 public class ComputerGameActivity extends AppCompatActivity {
 
     private static final long FILL_MILLIS = 120_000;
     private static final long COMPUTER_CALL_DELAY = 1_200;
+    private static final String BINGO = "BINGO";
+    private static final int LINE_COUNT = 12; // 5 rows + 5 columns + 2 diagonals
 
     private BingoGame game;
     private CountDownTimer fillTimer;
@@ -47,6 +57,12 @@ public class ComputerGameActivity extends AppCompatActivity {
     private boolean humanTurn;
     private boolean resultShown;
     private boolean computerCallPending;
+
+    // A completed line is counted only once, even if later calls leave it complete.
+    private final boolean[] humanCompletedLines = new boolean[LINE_COUNT];
+    private final boolean[] computerCompletedLines = new boolean[LINE_COUNT];
+    private int humanBingoCount;
+    private int computerBingoCount;
 
     private GridLayout grid;
     private final TextView[][] cellViews = new TextView[5][5];
@@ -228,6 +244,7 @@ public class ComputerGameActivity extends AppCompatActivity {
 
         Integer number = game.callNextNumber();
         if (number == null) {
+            // Five-line B-I-N-G-O should normally end the game before the deck is exhausted.
             finishDraw();
             return;
         }
@@ -237,22 +254,40 @@ public class ComputerGameActivity extends AppCompatActivity {
         appendCalledChip(number);
 
         // Every called number is automatically marked on the human card.
-        // BingoGame already auto-marks the same number on the computer card.
+        // BingoGame marks the same number on the computer card.
         BingoCard humanCard = game.getHuman().getCard();
         if (humanCard.markNumber(number)) recolorCell(number);
 
-        BingoValidator.WinResult humanWin = game.checkHumanWin();
-        BingoValidator.WinResult computerWin = game.checkComputerWin();
+        // A completed line is a score, not the end of the game.
+        List<String> humanNewLines = recordNewCompletedLines(
+                humanCard, humanCompletedLines, true);
+        List<String> computerNewLines = recordNewCompletedLines(
+                game.getComputer().getCard(), computerCompletedLines, false);
 
-        if (humanWin.isWin() || computerWin.isWin()) {
-            if (humanWin.isWin() && computerWin.isWin()) {
-                finishTie(humanWin);
-            } else if (humanWin.isWin()) {
-                finishRound(true, humanWin);
-            } else {
-                finishRound(false, computerWin);
-            }
+        StringBuilder progress = new StringBuilder();
+        if (!humanNewLines.isEmpty()) {
+            progress.append("YOU: ").append(joinLines(humanNewLines));
+        }
+        if (!computerNewLines.isEmpty()) {
+            if (progress.length() > 0) progress.append("   ");
+            progress.append("COMPUTER: ").append(joinLines(computerNewLines));
+        }
+
+        if (humanBingoCount >= 5 && computerBingoCount >= 5) {
+            finishTieAfterBingo(progress.toString());
             return;
+        }
+        if (humanBingoCount >= 5) {
+            finishBingo(true, progress.toString());
+            return;
+        }
+        if (computerBingoCount >= 5) {
+            finishBingo(false, progress.toString());
+            return;
+        }
+
+        if (progress.length() > 0) {
+            textFooterStatus.setText(progress + " — keep playing until B-I-N-G-O.");
         }
 
         // Alternate the caller after every single number.
@@ -261,6 +296,103 @@ public class ComputerGameActivity extends AppCompatActivity {
         } else {
             setHumanCallTurn();
         }
+    }
+
+    /**
+     * Finds lines that became complete for the first time. Each one receives the
+     * next B-I-N-G-O letter. Human completed lines are visibly crossed out.
+     */
+    private List<String> recordNewCompletedLines(BingoCard card, boolean[] completed, boolean human) {
+        List<String> newlyCompleted = new ArrayList<>();
+
+        // Rows.
+        for (int r = 0; r < 5; r++) {
+            int lineIndex = r;
+            if (!completed[lineIndex] && isRowComplete(card, r)) {
+                completed[lineIndex] = true;
+                newlyCompleted.add(awardLine(card, lineIndex, human, "Row " + (r + 1)));
+            }
+        }
+
+        // Columns.
+        for (int c = 0; c < 5; c++) {
+            int lineIndex = 5 + c;
+            if (!completed[lineIndex] && isColumnComplete(card, c)) {
+                completed[lineIndex] = true;
+                newlyCompleted.add(awardLine(card, lineIndex, human, "Column " + (c + 1)));
+            }
+        }
+
+        // Main diagonal.
+        if (!completed[10] && isMainDiagonalComplete(card)) {
+            completed[10] = true;
+            newlyCompleted.add(awardLine(card, 10, human, "Diagonal ↘"));
+        }
+
+        // Anti-diagonal.
+        if (!completed[11] && isAntiDiagonalComplete(card)) {
+            completed[11] = true;
+            newlyCompleted.add(awardLine(card, 11, human, "Diagonal ↙"));
+        }
+
+        return newlyCompleted;
+    }
+
+    private String awardLine(BingoCard card, int lineIndex, boolean human, String description) {
+        char letter = BINGO.charAt(human ? humanBingoCount : computerBingoCount);
+        if (human) humanBingoCount++; else computerBingoCount++;
+
+        if (human) crossLineOnGrid(card, lineIndex);
+        return letter + " (" + description + ")";
+    }
+
+    private boolean isRowComplete(BingoCard card, int row) {
+        for (int c = 0; c < 5; c++) if (!card.isMarked(row, c)) return false;
+        return true;
+    }
+
+    private boolean isColumnComplete(BingoCard card, int col) {
+        for (int r = 0; r < 5; r++) if (!card.isMarked(r, col)) return false;
+        return true;
+    }
+
+    private boolean isMainDiagonalComplete(BingoCard card) {
+        for (int i = 0; i < 5; i++) if (!card.isMarked(i, i)) return false;
+        return true;
+    }
+
+    private boolean isAntiDiagonalComplete(BingoCard card) {
+        for (int i = 0; i < 5; i++) if (!card.isMarked(i, 4 - i)) return false;
+        return true;
+    }
+
+    private void crossLineOnGrid(BingoCard card, int lineIndex) {
+        if (lineIndex < 5) {
+            int row = lineIndex;
+            for (int c = 0; c < 5; c++) crossCell(row, c);
+        } else if (lineIndex < 10) {
+            int col = lineIndex - 5;
+            for (int r = 0; r < 5; r++) crossCell(r, col);
+        } else if (lineIndex == 10) {
+            for (int i = 0; i < 5; i++) crossCell(i, i);
+        } else {
+            for (int i = 0; i < 5; i++) crossCell(i, 4 - i);
+        }
+    }
+
+    private void crossCell(int row, int col) {
+        TextView cell = cellViews[row][col];
+        cell.setPaintFlags(cell.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+        cell.setBackgroundColor(getColor(R.color.cell_marked));
+    }
+
+    private String joinLines(List<String> lines) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < lines.size(); i++) {
+            if (i > 0) result.append(", ");
+            result.append(lines.get(i));
+        }
+        return result.toString();
     }
 
     private void highlightIfPresent(int number) {
@@ -282,6 +414,7 @@ public class ComputerGameActivity extends AppCompatActivity {
         for (int r = 0; r < 5; r++) for (int c = 0; c < 5; c++) {
             cellViews[r][c].setText(String.valueOf(card.getValue(r, c)));
             cellViews[r][c].setBackgroundColor(getColor(R.color.bg_cell));
+            cellViews[r][c].setPaintFlags(cellViews[r][c].getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
         }
     }
 
@@ -299,7 +432,7 @@ public class ComputerGameActivity extends AppCompatActivity {
         highlightIfPresent(number);
     }
 
-    private void finishRound(boolean humanWon, BingoValidator.WinResult result) {
+    private void finishBingo(boolean humanWon, String progress) {
         if (resultShown) return;
         resultShown = true;
         game.finish();
@@ -311,13 +444,13 @@ public class ComputerGameActivity extends AppCompatActivity {
 
         Intent intent = new Intent(this, ResultActivity.class);
         intent.putExtra("winnerName", humanWon ? game.getHuman().getName() : game.getComputer().getName());
-        intent.putExtra("pattern", result.describe());
+        intent.putExtra("pattern", humanWon ? "B-I-N-G-O complete" : "Computer B-I-N-G-O complete");
         intent.putExtra("mode", "computer");
         startActivity(intent);
         finish();
     }
 
-    private void finishTie(BingoValidator.WinResult result) {
+    private void finishTieAfterBingo(String progress) {
         if (resultShown) return;
         resultShown = true;
         game.finish();
@@ -326,8 +459,8 @@ public class ComputerGameActivity extends AppCompatActivity {
         new StatsManager(this).recordComputerGame(false, game.calledSoFar().size());
 
         Intent intent = new Intent(this, ResultActivity.class);
-        intent.putExtra("winnerName", "Tie — both got Bingo");
-        intent.putExtra("pattern", result.describe());
+        intent.putExtra("winnerName", "Tie — both got B-I-N-G-O");
+        intent.putExtra("pattern", "Both players completed five lines");
         intent.putExtra("mode", "computer");
         startActivity(intent);
         finish();
@@ -343,7 +476,7 @@ public class ComputerGameActivity extends AppCompatActivity {
 
         Intent intent = new Intent(this, ResultActivity.class);
         intent.putExtra("winnerName", "No winner");
-        intent.putExtra("pattern", "No Bingo — all 25 numbers called");
+        intent.putExtra("pattern", "No B-I-N-G-O — all 25 numbers called");
         intent.putExtra("mode", "computer");
         startActivity(intent);
         finish();
