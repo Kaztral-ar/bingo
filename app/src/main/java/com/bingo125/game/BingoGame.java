@@ -3,9 +3,8 @@ package com.bingo125.game;
 import java.util.List;
 
 /**
- * Orchestrates a single VS-Computer match: both cards, the shared called-number
- * sequence, and win detection. (The online equivalent lives server-side; see
- * online/RoomManager and the Firebase rules — the client only renders that state.)
+ * Controls one offline VS-Computer match: card setup, one shared call deck,
+ * marking, and win-state transitions.
  */
 public class BingoGame {
 
@@ -25,16 +24,18 @@ public class BingoGame {
     public ComputerPlayer getComputer() { return computer; }
     public GameState getState() { return state; }
 
+    /** Starts calling exactly once. */
     public void startCallingPhase() {
+        if (state != GameState.FILLING) return;
         if (!human.getCard().isComplete()) human.getCard().autoFillRemaining();
         state = GameState.CALLING;
     }
 
-    /** Calls the next number in the shared sequence. Returns null once exhausted. */
+    /** Calls the next unique number. Returns null when the deck is exhausted or the game is over. */
     public Integer callNextNumber() {
-        if (callIndex >= callSequence.size()) return null;
+        if (state != GameState.CALLING || callIndex >= callSequence.size()) return null;
         int number = callSequence.get(callIndex++);
-        computer.onNumberCalled(number); // computer auto-marks immediately
+        computer.onNumberCalled(number);
         return number;
     }
 
@@ -42,7 +43,6 @@ public class BingoGame {
         return callSequence.subList(0, callIndex);
     }
 
-    /** Call this after the human marks a cell, and after every computer auto-mark. */
     public BingoValidator.WinResult checkHumanWin() {
         return BingoValidator.check(human.getCard());
     }
