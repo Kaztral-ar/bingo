@@ -20,6 +20,9 @@ public class ResultActivity extends AppCompatActivity {
         String pattern = getIntent().getStringExtra("pattern");
         String mode = getIntent().getStringExtra("mode");
         boolean youWon = getIntent().getBooleanExtra("youWon", false);
+        if (!youWon && "computer".equals(mode)) {
+            youWon = winnerName != null && !"Computer".equalsIgnoreCase(winnerName);
+        }
         boolean tie = "TIE".equalsIgnoreCase(pattern);
         boolean draw = "DRAW".equalsIgnoreCase(pattern);
 
