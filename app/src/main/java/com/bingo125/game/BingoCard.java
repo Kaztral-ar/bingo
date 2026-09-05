@@ -1,21 +1,24 @@
 package com.bingo125.game;
 
 /**
- * A single player's 5x5 card: the number grid plus which cells are marked.
- * 0 in the grid means "not yet placed" during the filling phase.
+ * A single player's 5x5 card containing numbers 1..25 and marked cells.
  */
 public class BingoCard {
 
     public static final int SIZE = 5;
+    public static final int MAX_NUMBER = SIZE * SIZE;
 
     private final int[][] grid = new int[SIZE][SIZE];
     private final boolean[][] marked = new boolean[SIZE][SIZE];
     private int nextNumberToPlace = 1;
 
+    /** Places exactly the next number (1..25) into an empty cell. */
     public boolean placeNumber(int row, int col, int number) {
         if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) return false;
-        if (grid[row][col] != 0) return false;           // cell already filled
-        if (number != nextNumberToPlace) return false;    // must place in order 1..25
+        if (number < 1 || number > MAX_NUMBER) return false;
+        if (grid[row][col] != 0) return false;
+        if (number != nextNumberToPlace) return false;
+
         grid[row][col] = number;
         nextNumberToPlace++;
         return true;
@@ -26,29 +29,32 @@ public class BingoCard {
     }
 
     public boolean isComplete() {
-        return nextNumberToPlace > 25;
+        return nextNumberToPlace > MAX_NUMBER;
     }
 
-    /** Fills every remaining empty cell with the still-unused numbers, in ascending order. */
+    /** Fills all remaining cells with the unused numbers in ascending order. */
     public void autoFillRemaining() {
-        boolean[] used = new boolean[26];
-        for (int r = 0; r < SIZE; r++)
-            for (int c = 0; c < SIZE; c++)
-                if (grid[r][c] != 0) used[grid[r][c]] = true;
+        boolean[] used = new boolean[MAX_NUMBER + 1];
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                int value = grid[r][c];
+                if (value >= 1 && value <= MAX_NUMBER) used[value] = true;
+            }
+        }
 
         int candidate = 1;
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
                 if (grid[r][c] == 0) {
-                    while (candidate <= 25 && used[candidate]) candidate++;
-                    if (candidate <= 25) {
+                    while (candidate <= MAX_NUMBER && used[candidate]) candidate++;
+                    if (candidate <= MAX_NUMBER) {
                         grid[r][c] = candidate;
                         used[candidate] = true;
                     }
                 }
             }
         }
-        nextNumberToPlace = 26;
+        nextNumberToPlace = MAX_NUMBER + 1;
     }
 
     public int getValue(int row, int col) {
@@ -59,11 +65,13 @@ public class BingoCard {
         return marked[row][col];
     }
 
-    /** Marks a called number on this card, if present. Returns true if it was found & marked. */
+    /** Marks a number if it exists on the card and has not already been marked. */
     public boolean markNumber(int number) {
+        if (number < 1 || number > MAX_NUMBER) return false;
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
                 if (grid[r][c] == number) {
+                    if (marked[r][c]) return false;
                     marked[r][c] = true;
                     return true;
                 }
@@ -73,6 +81,7 @@ public class BingoCard {
     }
 
     public boolean containsNumber(int number) {
+        if (number < 1 || number > MAX_NUMBER) return false;
         for (int r = 0; r < SIZE; r++)
             for (int c = 0; c < SIZE; c++)
                 if (grid[r][c] == number) return true;
