@@ -5,11 +5,6 @@
     "owner": "Kaztral-ar",
     "version": "1.0.1",
     "platforms": ["android"],
-    "extra": {
-      "eas": {
-        "projectId": "72c53c8f-bea0-4738-8800-d7194dacbdcb"
-      }
-    },
     "android": {
       "package": "com.bingo125",
       "versionCode": 2
