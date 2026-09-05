@@ -25,6 +25,9 @@
 
     <GridLayout android:id="@+id/bingoGrid" android:layout_width="300dp" android:layout_height="300dp" android:layout_gravity="center_horizontal" android:columnCount="5" android:rowCount="5" android:padding="2dp" />
 
+    <!-- Online mode uses this 1–25 call pad. It stays hidden until the calling phase. -->
+    <GridLayout android:id="@+id/callPad" android:layout_width="match_parent" android:layout_height="190dp" android:layout_marginTop="4dp" android:columnCount="5" android:rowCount="5" android:visibility="gone" android:padding="1dp" />
+
     <TextView android:id="@+id/textFooterStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tap the squares to place your numbers." android:textColor="@color/text_secondary" android:gravity="center" android:padding="5dp" />
 
     <!-- Kept hidden for compatibility with the online activity; no visible Call Number button. -->
