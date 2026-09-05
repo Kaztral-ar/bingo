@@ -23,10 +23,17 @@ import com.bingo125.util.StatsManager;
 
 import java.util.List;
 
-/** Real-time two-player online Bingo. The Firebase backend owns the call sequence and winner. */
+/**
+ * Real-time two-player online Bingo.
+ * Cards are filled independently during the same setup phase. During calling,
+ * every called number is automatically marked on both cards. Completed
+ * rows/columns/diagonals count as B-I-N-G-O letters; the first player to reach
+ * all five letters wins.
+ */
 public class OnlineGameActivity extends AppCompatActivity {
 
     private static final long CALL_INTERVAL_MILLIS = 2_500;
+    private static final String[] BINGO = {"B", "I", "N", "G", "O"};
 
     private final RoomManager roomManager = new RoomManager();
     private final int[][] myCard = new int[5][5];
@@ -114,8 +121,8 @@ public class OnlineGameActivity extends AppCompatActivity {
 
     private void onCellTapped(int row, int col) {
         if (resultShown) return;
+        // Filling is manual. During calling, marks come automatically from the server.
         if ("filling".equals(currentStatus) && !cardLocked) placeDuringFilling(row, col);
-        else if ("calling".equals(currentStatus) && cardLocked) markDuringCalling(row, col);
     }
 
     private void placeDuringFilling(int row, int col) {
@@ -135,41 +142,6 @@ public class OnlineGameActivity extends AppCompatActivity {
         }
     }
 
-    private void markDuringCalling(int row, int col) {
-        int value = myCard[row][col];
-        if (value == 0 || myMarked[row][col]) return;
-
-        List<Integer> called = latestRoom == null ? null : latestRoom.calledNumbers;
-        if (called == null || !called.contains(value)) {
-            Toast.makeText(this, "Number " + value + " has not been called.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        myMarked[row][col] = true;
-        cellViews[row][col].setBackgroundColor(getColor(R.color.cell_marked));
-        roomManager.markNumber(roomCode, myUid, deepCopy(myMarked));
-        if (hasLocalBingo()) roomManager.claimBingo(roomCode, myUid);
-    }
-
-    private boolean hasLocalBingo() {
-        for (int r = 0; r < 5; r++) {
-            boolean ok = true;
-            for (int c = 0; c < 5; c++) ok &= myMarked[r][c];
-            if (ok) return true;
-        }
-        for (int c = 0; c < 5; c++) {
-            boolean ok = true;
-            for (int r = 0; r < 5; r++) ok &= myMarked[r][c];
-            if (ok) return true;
-        }
-        boolean a = true, b = true;
-        for (int i = 0; i < 5; i++) {
-            a &= myMarked[i][i];
-            b &= myMarked[i][4 - i];
-        }
-        return a || b;
-    }
-
     private void render(RoomModel room) {
         if (resultShown) return;
         latestRoom = room;
@@ -177,7 +149,9 @@ public class OnlineGameActivity extends AppCompatActivity {
 
         if ("filling".equals(currentStatus)) {
             textStatusLabel.setText("Fill Your Bingo Card");
-            textFooterStatus.setText(cardLocked ? "Card complete — waiting for opponent…" : "Tap cells to place 1 → 25");
+            textFooterStatus.setText(cardLocked
+                    ? "Card complete — waiting for opponent…"
+                    : "Tap cells to place 1 → 25");
             if (room.fillDeadline != null && fillTimer == null) {
                 long remaining = Math.max(0, room.fillDeadline - System.currentTimeMillis());
                 fillTimer = new CountDownTimer(remaining, 1000) {
@@ -208,6 +182,7 @@ public class OnlineGameActivity extends AppCompatActivity {
                     }
                 }
             }
+
             calledScroll.setVisibility(View.VISIBLE);
             textStatusLabel.setText("Bingo Round — Online");
             textTimer.setText("");
@@ -222,18 +197,18 @@ public class OnlineGameActivity extends AppCompatActivity {
                     int number = called.get(i);
                     sound.playCall();
                     appendCalledChip(number);
-                    highlightIfPresent(number);
                 }
                 textBigNumber.setText(String.valueOf(called.get(called.size() - 1)));
                 lastRenderedCalledCount = called.size();
             }
 
-            // Only the host requests calls; all clients render the same server sequence.
+            updateBingoProgress(me);
+
+            // Only the host requests the authoritative shared call sequence.
             if (myUid.equals(room.host) && !callingStartedLocally) {
                 callingStartedLocally = true;
                 startHostCallingLoop();
             }
-            textFooterStatus.setText("Tap a called number on your card to mark it");
         }
 
         if ("finished".equals(currentStatus) && room.winnerUid != null) {
@@ -251,11 +226,21 @@ public class OnlineGameActivity extends AppCompatActivity {
 
             Intent intent = new Intent(this, ResultActivity.class);
             intent.putExtra("winnerName", winnerName);
-            intent.putExtra("pattern", room.winningPattern != null ? room.winningPattern : "—");
+            intent.putExtra("pattern", room.winningPattern != null ? room.winningPattern : "BINGO");
             intent.putExtra("mode", "online");
             startActivity(intent);
             finish();
         }
+    }
+
+    private void updateBingoProgress(RoomModel.PlayerModel me) {
+        int count = me == null ? 0 : Math.max(0, Math.min(5, me.bingoCount));
+        StringBuilder progress = new StringBuilder("BINGO: ");
+        for (int i = 0; i < BINGO.length; i++) {
+            if (i > 0) progress.append("  ");
+            progress.append(i < count ? BINGO[i] + " ✓" : BINGO[i]);
+        }
+        textFooterStatus.setText(progress.toString());
     }
 
     private void startHostCallingLoop() {
@@ -275,13 +260,6 @@ public class OnlineGameActivity extends AppCompatActivity {
         callRunnable = null;
     }
 
-    private void highlightIfPresent(int number) {
-        for (int r = 0; r < 5; r++) for (int c = 0; c < 5; c++) {
-            if (myCard[r][c] == number && !myMarked[r][c])
-                cellViews[r][c].setBackgroundColor(getColor(R.color.cell_called));
-        }
-    }
-
     private void appendCalledChip(int number) {
         TextView chip = new TextView(this);
         chip.setText(String.valueOf(number));
@@ -298,12 +276,6 @@ public class OnlineGameActivity extends AppCompatActivity {
 
     private int[][] deepCopy(int[][] src) {
         int[][] copy = new int[5][5];
-        for (int r = 0; r < 5; r++) copy[r] = src[r].clone();
-        return copy;
-    }
-
-    private boolean[][] deepCopy(boolean[][] src) {
-        boolean[][] copy = new boolean[5][5];
         for (int r = 0; r < 5; r++) copy[r] = src[r].clone();
         return copy;
     }
