@@ -1,161 +1,40 @@
 package com.bingo125.online;
 
-import androidx.annotation.NonNull;
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import org.json.JSONObject;
 
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.ServerValue;
-import com.google.firebase.database.ValueEventListener;
-
-import java.security.SecureRandom;
-import java.util.HashMap;
-import java.util.Map;
-
-/** Client-side room operations. Firebase Functions remain authoritative for calls and winners. */
+/** Supabase-backed room service. Polling is used for broad Android compatibility. */
 public class RoomManager {
+    public interface RoomListener { void onRoomUpdated(RoomModel room); void onError(String message); }
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private Context context;
+    private String activeRoom;
+    private RoomListener listener;
+    private boolean listening;
 
-    public interface RoomListener {
-        void onRoomUpdated(RoomModel room);
-        void onError(String message);
+    public void init(Context c){ context=c.getApplicationContext(); }
+
+    public void createRoom(String uid,String name,RoomListener cb){
+        JSONObject b=new JSONObject();try{b.put("action","create");b.put("name",name==null?"Player":name);}catch(Exception ignored){}
+        SupabaseManager.function(context,b,new SupabaseManager.Callback(){public void success(JSONObject r){listenToRoom(r.optString("roomCode"),cb);}public void error(String m){main.post(()->cb.onError(m));}});
     }
-
-    private final FirebaseManager firebase = FirebaseManager.getInstance();
-    private ValueEventListener activeListener;
-    private String activeRoomCode;
-
-    public void createRoom(String uid, String displayName, RoomListener callback) {
-        createRoomAttempt(uid, displayName, callback, 0);
+    public void joinRoom(String code,String uid,String name,RoomListener cb){
+        if(code==null||!code.matches("\\d{6}")){cb.onError("Enter a valid 6-digit room code.");return;}
+        JSONObject b=new JSONObject();try{b.put("action","join");b.put("roomCode",code);b.put("name",name==null?"Player":name);}catch(Exception ignored){}
+        SupabaseManager.function(context,b,new SupabaseManager.Callback(){public void success(JSONObject r){listenToRoom(code,cb);}public void error(String m){main.post(()->cb.onError(m));}});
     }
+    public void startGame(String code){call(code,"start",null,null);}
+    public void saveCard(String code,String uid,int[][] card,boolean locked){JSONObject b=new JSONObject();try{b.put("action","saveCard");b.put("roomCode",code);b.put("card",new org.json.JSONArray(card));b.put("locked",locked);}catch(Exception ignored){}send(b,null);}
+    public void startCalling(String code,String firstCaller){JSONObject b=new JSONObject();try{b.put("action","startCalling");b.put("roomCode",code);b.put("firstCaller",firstCaller);}catch(Exception ignored){}send(b,null);}
+    public void callNumber(String code,RoomListener cb){JSONObject b=new JSONObject();try{b.put("action","call");b.put("roomCode",code);}catch(Exception ignored){}send(b,new SupabaseManager.Callback(){public void success(JSONObject r){if(cb!=null)main.post(()->cb.onRoomUpdated(null));}public void error(String m){if(cb!=null)main.post(()->cb.onError(m));}});}
+    private void call(String code,String action,String unused,Object x){JSONObject b=new JSONObject();try{b.put("action",action);b.put("roomCode",code);}catch(Exception ignored){}send(b,null);}
+    private void send(JSONObject b,SupabaseManager.Callback cb){SupabaseManager.function(context,b,new SupabaseManager.Callback(){public void success(JSONObject r){if(cb!=null)cb.success(r);}public void error(String m){if(cb!=null)cb.error(m);}});}
 
-    private void createRoomAttempt(String uid, String displayName, RoomListener callback, int attempt) {
-        if (attempt >= 5) {
-            callback.onError("Could not create a unique room. Please try again.");
-            return;
-        }
-        String roomCode = generateRoomCode();
-        DatabaseReference roomRef = firebase.roomRef(roomCode);
-        roomRef.get().addOnSuccessListener(existing -> {
-            if (existing.exists()) {
-                createRoomAttempt(uid, displayName, callback, attempt + 1);
-                return;
-            }
-            Map<String, Object> room = new HashMap<>();
-            room.put("host", uid);
-            room.put("status", "waiting");
-            room.put("createdAt", ServerValue.TIMESTAMP);
-
-            Map<String, Object> player = new HashMap<>();
-            player.put("name", displayName == null ? "Player" : displayName);
-            player.put("ready", true);
-            player.put("cardLocked", false);
-
-            Map<String, Object> players = new HashMap<>();
-            players.put(uid, player);
-            room.put("players", players);
-
-            roomRef.setValue(room)
-                    .addOnSuccessListener(v -> listenToRoom(roomCode, callback))
-                    .addOnFailureListener(e -> callback.onError("Could not create room: " + e.getMessage()));
-        }).addOnFailureListener(e -> callback.onError("Network error: " + e.getMessage()));
+    public void listenToRoom(String code,RoomListener cb){
+        stopListening(); activeRoom=code; listener=cb; listening=true; poll();
     }
-
-    public void joinRoom(String roomCode, String uid, String displayName, RoomListener callback) {
-        if (roomCode == null || !roomCode.matches("\\d{6}")) {
-            callback.onError("Enter a valid 6-digit room code.");
-            return;
-        }
-        DatabaseReference roomRef = firebase.roomRef(roomCode);
-        roomRef.get().addOnSuccessListener(snapshot -> {
-            if (!snapshot.exists()) {
-                callback.onError("Room not found. Check the code and try again.");
-                return;
-            }
-            String status = snapshot.child("status").getValue(String.class);
-            long playerCount = snapshot.child("players").getChildrenCount();
-            if (!"waiting".equals(status)) {
-                callback.onError("This game has already started.");
-                return;
-            }
-            if (playerCount >= 2 && !snapshot.child("players").hasChild(uid)) {
-                callback.onError("This room is full.");
-                return;
-            }
-
-            Map<String, Object> player = new HashMap<>();
-            player.put("name", displayName == null ? "Player" : displayName);
-            player.put("ready", true);
-            player.put("cardLocked", false);
-            roomRef.child("players").child(uid).setValue(player)
-                    .addOnSuccessListener(v -> listenToRoom(roomCode, callback))
-                    .addOnFailureListener(e -> callback.onError("Could not join room: " + e.getMessage()));
-        }).addOnFailureListener(e -> callback.onError("Network error: " + e.getMessage()));
-    }
-
-    /** Host-only request. The backend changes waiting -> filling and creates the deadline. */
-    public void startGame(String roomCode) {
-        firebase.roomRef(roomCode).child("status").setValue("filling");
-    }
-
-    /** Ask the backend to move to calling immediately when the 2-minute fill timer expires. */
-    public void requestCalling(String roomCode, String uid) {
-        firebase.roomRef(roomCode).child("startCallingRequests").child(uid).setValue(ServerValue.TIMESTAMP);
-    }
-
-    public void placeNumber(String roomCode, String uid, int row, int col, int number, int[][] fullCardSoFar) {
-        firebase.playerRef(roomCode, uid).child("card").setValue(fullCardSoFar);
-    }
-
-    public void lockCard(String roomCode, String uid) {
-        firebase.playerRef(roomCode, uid).child("cardLocked").setValue(true);
-    }
-
-    public void markNumber(String roomCode, String uid, boolean[][] fullMarkedGrid) {
-        firebase.playerRef(roomCode, uid).child("marked").setValue(fullMarkedGrid);
-    }
-
-    public void claimBingo(String roomCode, String uid) {
-        firebase.roomRef(roomCode).child("claims").child(uid).setValue(ServerValue.TIMESTAMP);
-    }
-
-    /** Host-only real-time request; the backend appends the next authoritative number. */
-    public void requestNextNumber(String roomCode, String uid) {
-        firebase.roomRef(roomCode).child("callRequests").child(uid).setValue(ServerValue.TIMESTAMP);
-    }
-
-    public void listenToRoom(String roomCode, RoomListener callback) {
-        stopListening();
-        activeRoomCode = roomCode;
-        activeListener = new ValueEventListener() {
-            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (!snapshot.exists()) {
-                    callback.onError("Room no longer exists.");
-                    return;
-                }
-                RoomModel room = RoomMapper.fromSnapshot(roomCode, snapshot);
-                callback.onRoomUpdated(room);
-            }
-            @Override public void onCancelled(@NonNull DatabaseError error) {
-                callback.onError(error.getMessage());
-            }
-        };
-        firebase.roomRef(roomCode).addValueEventListener(activeListener);
-    }
-
-    public void stopListening() {
-        if (activeListener != null && activeRoomCode != null) {
-            firebase.roomRef(activeRoomCode).removeEventListener(activeListener);
-        }
-        activeListener = null;
-        activeRoomCode = null;
-    }
-
-    public void leaveRoom(String roomCode, String uid) {
-        firebase.playerRef(roomCode, uid).removeValue();
-    }
-
-    private String generateRoomCode() {
-        SecureRandom rng = new SecureRandom();
-        return String.valueOf(100000 + rng.nextInt(900000));
-    }
+    private void poll(){if(!listening)return;JSONObject b=new JSONObject();try{b.put("action","getRoom");b.put("roomCode",activeRoom);}catch(Exception ignored){}SupabaseManager.function(context,b,new SupabaseManager.Callback(){public void success(JSONObject r){try{RoomModel room=SupabaseManager.parseRoom(r);main.post(()->{if(listening&&listener!=null)listener.onRoomUpdated(room);});}catch(Exception e){main.post(()->listener.onError("Could not read game room."));}if(listening)main.postDelayed(()->poll(),700);}public void error(String m){if(listening)main.postDelayed(()->poll(),1200);}});}
+    public void stopListening(){listening=false;activeRoom=null;listener=null;}
 }
