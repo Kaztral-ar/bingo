@@ -20,9 +20,10 @@ public class ResultActivity extends AppCompatActivity {
         String pattern = getIntent().getStringExtra("pattern");
         String mode = getIntent().getStringExtra("mode");
         boolean tie = "TIE".equalsIgnoreCase(pattern);
+        boolean draw = "DRAW".equalsIgnoreCase(pattern);
 
-        ((TextView) findViewById(R.id.textWinner)).setText(tie ? "Result: TIE" : "Winner: " + winnerName);
-        ((TextView) findViewById(R.id.textPattern)).setText(tie ? "Both players completed B-I-N-G-O" : "Winning Pattern: " + pattern);
+        ((TextView) findViewById(R.id.textWinner)).setText(tie ? "Result: TIE" : draw ? "Result: DRAW" : "Winner: " + winnerName);
+        ((TextView) findViewById(R.id.textPattern)).setText(tie ? "Both players completed B-I-N-G-O" : draw ? "All 25 numbers were called — no winner" : "Winning Pattern: " + pattern);
 
         findViewById(R.id.btnPlayAgain).setOnClickListener(v -> {
             Class<?> target = "online".equals(mode) ? OnlineMenuActivity.class : ComputerGameActivity.class;
