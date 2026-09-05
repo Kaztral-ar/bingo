@@ -22,7 +22,7 @@ import com.bingo125.util.StatsManager;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Online Bingo using Supabase. Cards fill simultaneously; calling alternates and marks both cards automatically. */
+/** Online Bingo using Supabase. */
 public class OnlineGameActivity extends AppCompatActivity {
     private final RoomManager rooms=new RoomManager(); private String roomCode,myUid; private RoomModel latest; private boolean resultShown,promptShown; private CountDownTimer fillTimer; private int[][] myCard=new int[5][5]; private int nextNumber=1; private int lastCalls;
     private GridLayout grid; private final TextView[][] cells=new TextView[5][5]; private TextView status,big,timer,footer; private LinearLayout calledRow; private HorizontalScrollView calledScroll; private Button callButton; private SoundManager sound; private final AdManager ads=new AdManager();
@@ -39,7 +39,7 @@ public class OnlineGameActivity extends AppCompatActivity {
     private String progress(int n){String s="";String x="BINGO";for(int i=0;i<5;i++){if(i>0)s+="  ";s+=i<n?x.charAt(i)+" ✓":String.valueOf(x.charAt(i));}return s;}
     private boolean allLocked(RoomModel r){if(r.players.size()<2)return false;for(RoomModel.PlayerModel p:r.players.values())if(!p.cardLocked)return false;return true;}
     private String otherPlayer(RoomModel r,String first){for(String id:r.players.keySet())if(!id.equals(first))return id;return null;}
-    private void maybeStartCalling(RoomModel r){if(promptShown||resultShown||!allLocked(r)||!myUid.equals(r.host))return;promptShown=true;new AlertDialog.Builder(this).setTitle("Who calls first?").setMessage("Calling alternates after every number. Both cards mark automatically.").setNegativeButton("YOU / HOST",(d,w)->rooms.startCalling(roomCode,myUid)).setPositiveButton("OPPONENT",(d,w)->rooms.startCalling(roomCode,otherPlayer(r,myUid))).setCancelable(false).show();}
+    private void maybeStartCalling(RoomModel r){if(promptShown||resultShown||!myUid.equals(r.host))return;boolean deadlineExpired=r.fillDeadline!=null&&r.fillDeadline<=System.currentTimeMillis();if(!allLocked(r)&&!deadlineExpired)return;promptShown=true;new AlertDialog.Builder(this).setTitle("Who calls first?").setMessage("Calling alternates after every number. Both cards mark automatically.").setNegativeButton("YOU / HOST",(d,w)->rooms.startCalling(roomCode,myUid)).setPositiveButton("OPPONENT",(d,w)->rooms.startCalling(roomCode,otherPlayer(r,myUid))).setCancelable(false).show();}
     private void showResult(RoomModel r){resultShown=true;rooms.stopListening();if(fillTimer!=null)fillTimer.cancel();boolean won=myUid.equals(r.winnerUid);if(won)sound.playWin();new StatsManager(this).recordOnlineGame(won,lastCalls);ads.showInterstitialIfReady(this);RoomModel.PlayerModel p=r.players.get(r.winnerUid);Intent i=new Intent(this,ResultActivity.class);i.putExtra("winnerName",p==null?"Opponent":p.name);i.putExtra("pattern",r.winningPattern==null?"B-I-N-G-O":r.winningPattern);i.putExtra("mode","online");startActivity(i);finish();}
     @Override public void onBackPressed(){rooms.stopListening();super.onBackPressed();}
     @Override protected void onDestroy(){super.onDestroy();if(fillTimer!=null)fillTimer.cancel();rooms.stopListening();if(sound!=null)sound.release();}
