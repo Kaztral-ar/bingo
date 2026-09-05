@@ -5,75 +5,16 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.bingo125.online.RoomManager;
 import com.bingo125.online.RoomModel;
 import com.bingo125.util.PrefsManager;
 
 public class CreateRoomActivity extends AppCompatActivity {
-
-    private final RoomManager roomManager = new RoomManager();
-    private String roomCode;
-    private String myUid;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_create_room);
-
-        TextView textCode = findViewById(R.id.textRoomCode);
-        TextView textStatus = findViewById(R.id.textLobbyStatus);
-        Button btnStart = findViewById(R.id.btnStartGame);
-
-        AuthHelper.ensureSignedIn(new AuthHelper.UidCallback() {
-            @Override
-            public void onReady(String uid) {
-                myUid = uid;
-                String name = new PrefsManager(CreateRoomActivity.this).getPlayerName();
-                roomManager.createRoom(uid, name, new RoomManager.RoomListener() {
-                    @Override
-                    public void onRoomUpdated(RoomModel room) {
-                        roomCode = room.roomCode;
-                        textCode.setText(room.roomCode);
-
-                        int playerCount = room.players.size();
-                        boolean ready = playerCount >= 2;
-                        textStatus.setText(ready ? "Player 2 has joined!" : "Waiting for Player 2…");
-                        btnStart.setEnabled(ready);
-
-                        if ("filling".equals(room.status)) {
-                            Intent intent = new Intent(CreateRoomActivity.this, OnlineGameActivity.class);
-                            intent.putExtra("roomCode", room.roomCode);
-                            intent.putExtra("uid", myUid);
-                            startActivity(intent);
-                            finish();
-                        }
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        Toast.makeText(CreateRoomActivity.this, message, Toast.LENGTH_LONG).show();
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(CreateRoomActivity.this, message, Toast.LENGTH_LONG).show();
-                finish();
-            }
-        });
-
-        btnStart.setOnClickListener(v -> {
-            if (roomCode != null) roomManager.startGame(roomCode);
-        });
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        roomManager.stopListening();
-    }
+    private final RoomManager roomManager=new RoomManager(); private String roomCode,myUid;
+    @Override protected void onCreate(Bundle b){super.onCreate(b);setContentView(R.layout.activity_create_room);roomManager.init(this);TextView code=findViewById(R.id.textRoomCode),status=findViewById(R.id.textLobbyStatus);Button start=findViewById(R.id.btnStartGame);
+        AuthHelper.ensureSignedIn(this,new AuthHelper.UidCallback(){public void onReady(String uid){myUid=uid;roomManager.createRoom(uid,new PrefsManager(CreateRoomActivity.this).getPlayerName(),new RoomManager.RoomListener(){public void onRoomUpdated(RoomModel r){roomCode=r.roomCode;code.setText(r.roomCode);boolean ready=r.players.size()>=2;status.setText(ready?"Player 2 has joined!":"Waiting for Player 2…");start.setEnabled(ready);if("filling".equals(r.status)){startGameScreen(r.roomCode);}}public void onError(String m){Toast.makeText(CreateRoomActivity.this,m,Toast.LENGTH_LONG).show();}});}public void onError(String m){Toast.makeText(CreateRoomActivity.this,m,Toast.LENGTH_LONG).show();finish();}});
+        start.setOnClickListener(v->{if(roomCode!=null)roomManager.startGame(roomCode);});}
+    private void startGameScreen(String code){Intent i=new Intent(this,OnlineGameActivity.class);i.putExtra("roomCode",code);i.putExtra("uid",myUid);startActivity(i);finish();}
+    @Override protected void onDestroy(){super.onDestroy();roomManager.stopListening();}
 }
