@@ -59,6 +59,16 @@
             android:padding="4dp" />
     </HorizontalScrollView>
 
+    <GridLayout
+        android:id="@+id/callPad"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="5"
+        android:rowCount="5"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
