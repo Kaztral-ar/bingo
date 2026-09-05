@@ -19,6 +19,7 @@ public class ResultActivity extends AppCompatActivity {
         String winnerName = getIntent().getStringExtra("winnerName");
         String pattern = getIntent().getStringExtra("pattern");
         String mode = getIntent().getStringExtra("mode");
+        boolean youWon = getIntent().getBooleanExtra("youWon", false);
         boolean tie = "TIE".equalsIgnoreCase(pattern);
         boolean draw = "DRAW".equalsIgnoreCase(pattern);
 
@@ -28,16 +29,19 @@ public class ResultActivity extends AppCompatActivity {
 
         if (tie) {
             headline.setText("BINGO — TIE!");
-            winner.setText("Both players win");
-            winningPattern.setText("Both players completed B-I-N-G-O");
+            winner.setText("Both players completed B-I-N-G-O");
+            winningPattern.setText("Both players reached 5 lines on the same call");
         } else if (draw) {
             headline.setText("GAME DRAW");
             winner.setText("No winner");
             winningPattern.setText("All 25 numbers were called");
+        } else if (youWon) {
+            headline.setText("YOU WIN! 🎉");
+            winner.setText("BINGO!");
+            winningPattern.setText("You completed B-I-N-G-O");
         } else {
-            boolean youWon = "You".equalsIgnoreCase(winnerName);
-            headline.setText(youWon ? "YOU WIN!" : "YOU LOSE");
-            winner.setText(youWon ? "BINGO! 🎉" : "Winner: " + (winnerName == null ? "Opponent" : winnerName));
+            headline.setText("YOU LOSE");
+            winner.setText("Winner: " + (winnerName == null ? "Opponent" : winnerName));
             winningPattern.setText("Winning Pattern: " + (pattern == null ? "B-I-N-G-O" : pattern));
         }
 
