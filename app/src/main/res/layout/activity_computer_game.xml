@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="@color/bg_deep"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="12dp">
 
     <TextView
         android:layout_width="match_parent"
@@ -23,7 +23,7 @@
         android:textColor="@color/text_primary"
         android:textSize="16sp"
         android:gravity="center"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="6dp" />
 
     <TextView
         android:id="@+id/textBigNumber"
@@ -31,10 +31,10 @@
         android:layout_height="wrap_content"
         android:text="1"
         android:textColor="@color/accent_gold"
-        android:textSize="48sp"
+        android:textSize="42sp"
         android:textStyle="bold"
         android:gravity="center"
-        android:layout_marginTop="4dp" />
+        android:layout_marginTop="2dp" />
 
     <TextView
         android:id="@+id/textTimer"
@@ -42,9 +42,9 @@
         android:layout_height="wrap_content"
         android:text="Card Time: 2:00"
         android:textColor="@color/accent_coral"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:gravity="center"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="4dp" />
 
     <HorizontalScrollView
         android:id="@+id/calledScroll"
@@ -56,7 +56,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="4dp" />
+            android:padding="2dp" />
     </HorizontalScrollView>
 
     <GridLayout
@@ -66,31 +66,20 @@
         android:columnCount="5"
         android:rowCount="5"
         android:visibility="gone"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp" />
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="3dp" />
 
     <LinearLayout
+        android:id="@+id/bingoHeader"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="34dp"
         android:orientation="horizontal"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="4dp">
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="YOU"
-            android:textColor="@color/accent_mint"
-            android:textStyle="bold"
-            android:gravity="center" />
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="COMPUTER"
-            android:textColor="@color/accent_coral"
-            android:textStyle="bold"
-            android:gravity="center" />
+        android:background="@color/accent_gold">
+        <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="B" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
+        <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="I" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
+        <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="N" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
+        <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="G" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
+        <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="O" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
     </LinearLayout>
 
     <GridLayout
@@ -100,7 +89,7 @@
         android:layout_weight="1"
         android:columnCount="5"
         android:rowCount="5"
-        android:padding="@dimen/grid_padding" />
+        android:padding="2dp" />
 
     <TextView
         android:id="@+id/textFooterStatus"
@@ -109,7 +98,7 @@
         android:text="Fill your card while the computer prepares its card."
         android:textColor="@color/text_secondary"
         android:gravity="center"
-        android:padding="8dp" />
+        android:padding="5dp" />
 
     <Button
         android:id="@+id/btnCallNumber"
@@ -118,6 +107,6 @@
         android:text="CALL NUMBER"
         android:textStyle="bold"
         android:visibility="gone"
-        android:layout_marginTop="4dp" />
+        android:layout_marginTop="2dp" />
 
 </LinearLayout>
