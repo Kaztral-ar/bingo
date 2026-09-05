@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg_deep">#0F1424</color>
-    <color name="bg_panel">#1A2138</color>
-    <color name="bg_cell">#232B46</color>
-    <color name="accent_gold">#F2B441</color>
-    <color name="accent_coral">#FF6B5B</color>
-    <color name="accent_mint">#3ECF8E</color>
-    <color name="text_primary">#F4F1EA</color>
-    <color name="text_secondary">#9BA3C2</color>
-    <color name="cell_called">#2E3B63</color>
-    <color name="cell_marked">#3ECF8E</color>
-    <color name="cell_winning">#F2B441</color>
+    <color name="bg_deep">#F4FAFF</color>
+    <color name="bg_panel">#E5F4FF</color>
+    <color name="bg_cell">#FFFFFF</color>
+    <color name="accent_gold">#168BEA</color>
+    <color name="accent_coral">#4BAFEF</color>
+    <color name="accent_mint">#BFE8FF</color>
+    <color name="text_primary">#102A43</color>
+    <color name="text_secondary">#58708A</color>
+    <color name="cell_called">#D8F0FF</color>
+    <color name="cell_marked">#A9DEFF</color>
+    <color name="cell_winning">#65BFF2</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 </resources>
