@@ -22,8 +22,24 @@ public class ResultActivity extends AppCompatActivity {
         boolean tie = "TIE".equalsIgnoreCase(pattern);
         boolean draw = "DRAW".equalsIgnoreCase(pattern);
 
-        ((TextView) findViewById(R.id.textWinner)).setText(tie ? "Result: TIE" : draw ? "Result: DRAW" : "Winner: " + winnerName);
-        ((TextView) findViewById(R.id.textPattern)).setText(tie ? "Both players completed B-I-N-G-O" : draw ? "All 25 numbers were called — no winner" : "Winning Pattern: " + pattern);
+        TextView headline = findViewById(R.id.textResultHeadline);
+        TextView winner = findViewById(R.id.textWinner);
+        TextView winningPattern = findViewById(R.id.textPattern);
+
+        if (tie) {
+            headline.setText("BINGO — TIE!");
+            winner.setText("Both players win");
+            winningPattern.setText("Both players completed B-I-N-G-O");
+        } else if (draw) {
+            headline.setText("GAME DRAW");
+            winner.setText("No winner");
+            winningPattern.setText("All 25 numbers were called");
+        } else {
+            boolean youWon = "You".equalsIgnoreCase(winnerName);
+            headline.setText(youWon ? "YOU WIN!" : "YOU LOSE");
+            winner.setText(youWon ? "BINGO! 🎉" : "Winner: " + (winnerName == null ? "Opponent" : winnerName));
+            winningPattern.setText("Winning Pattern: " + (pattern == null ? "B-I-N-G-O" : pattern));
+        }
 
         findViewById(R.id.btnPlayAgain).setOnClickListener(v -> {
             Class<?> target = "online".equals(mode) ? OnlineMenuActivity.class : ComputerGameActivity.class;
