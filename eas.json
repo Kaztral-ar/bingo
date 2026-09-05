@@ -6,17 +6,22 @@
   "build": {
     "production": {
       "android": {
+        "image": "ubuntu-26.04-jdk-17-ndk-r27b-sdk-57",
         "buildType": "apk"
       }
     },
     "preview": {
       "android": {
+        "image": "ubuntu-26.04-jdk-17-ndk-r27b-sdk-57",
         "buildType": "apk"
       }
     },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "image": "ubuntu-26.04-jdk-17-ndk-r27b-sdk-57"
+      }
     }
   }
 }
