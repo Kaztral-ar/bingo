@@ -59,16 +59,6 @@
             android:padding="2dp" />
     </HorizontalScrollView>
 
-    <GridLayout
-        android:id="@+id/callPad"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:columnCount="5"
-        android:rowCount="5"
-        android:visibility="gone"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="3dp" />
-
     <LinearLayout
         android:id="@+id/bingoHeader"
         android:layout_width="match_parent"
@@ -84,9 +74,9 @@
 
     <GridLayout
         android:id="@+id/bingoGrid"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_gravity="center_horizontal"
         android:columnCount="5"
         android:rowCount="5"
         android:padding="2dp" />
@@ -95,18 +85,9 @@
         android:id="@+id/textFooterStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Fill your card while the computer prepares its card."
+        android:text="Tap the squares to place your numbers."
         android:textColor="@color/text_secondary"
         android:gravity="center"
         android:padding="5dp" />
-
-    <Button
-        android:id="@+id/btnCallNumber"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="CALL NUMBER"
-        android:textStyle="bold"
-        android:visibility="gone"
-        android:layout_marginTop="2dp" />
 
 </LinearLayout>
