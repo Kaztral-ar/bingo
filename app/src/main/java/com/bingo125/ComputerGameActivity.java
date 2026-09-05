@@ -7,10 +7,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.app.AlertDialog;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -25,25 +27,31 @@ import com.bingo125.util.PrefsManager;
 import com.bingo125.util.SoundManager;
 import com.bingo125.util.StatsManager;
 
-/** Offline 1–25 Bingo: card filling followed by automatic number calling. */
+/** Offline VS Computer Bingo with a clear, turn-by-turn card setup phase. */
 public class ComputerGameActivity extends AppCompatActivity {
 
     private static final long FILL_MILLIS = 120_000;
+    private static final long COMPUTER_TURN_DELAY = 800;
     private static final long CALL_INTERVAL_MILLIS = 2_500;
 
     private BingoGame game;
     private CountDownTimer fillTimer;
     private final Handler callHandler = new Handler(Looper.getMainLooper());
     private Runnable callRunnable;
-    private boolean callingStarted = false;
-    private boolean resultShown = false;
+
+    private boolean humanStarts;
+    private boolean humanTurn;
+    private boolean humanCardDone;
+    private boolean computerCardDone;
+    private boolean callingStarted;
+    private boolean resultShown;
 
     private GridLayout grid;
     private final TextView[][] cellViews = new TextView[5][5];
-
     private TextView textStatusLabel, textBigNumber, textTimer, textFooterStatus;
     private LinearLayout calledNumbersRow;
     private HorizontalScrollView calledScroll;
+    private Button btnNextPlayer;
 
     private SoundManager sound;
     private PrefsManager prefs;
@@ -65,10 +73,99 @@ public class ComputerGameActivity extends AppCompatActivity {
         textFooterStatus = findViewById(R.id.textFooterStatus);
         calledNumbersRow = findViewById(R.id.calledNumbersRow);
         calledScroll = findViewById(R.id.calledScroll);
+        btnNextPlayer = findViewById(R.id.btnNextPlayer);
 
         game = new BingoGame(new Player(prefs.getPlayerName()), new ComputerPlayer("Computer"));
         buildGrid();
-        startFillingPhase();
+
+        btnNextPlayer.setOnClickListener(v -> advanceToNextTurn());
+        showWhoStartsDialog();
+    }
+
+    /** Always ask first. The chosen starter is shown before any card input is allowed. */
+    private void showWhoStartsDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Who starts first?")
+                .setMessage("Choose who gets the first card-filling turn.")
+                .setCancelable(false)
+                .setNegativeButton("YOU START", (d, w) -> beginTurn(true))
+                .setPositiveButton("COMPUTER STARTS", (d, w) -> beginTurn(false))
+                .show();
+    }
+
+    private void beginTurn(boolean human) {
+        humanTurn = human;
+        btnNextPlayer.setVisibility(View.GONE);
+        clearVisibleGrid();
+
+        if (human) {
+            textStatusLabel.setText("YOUR TURN — Fill Your Bingo Card");
+            textFooterStatus.setText("Place numbers 1 → 25. You have 2 minutes.");
+            textBigNumber.setText("1");
+            startHumanTimer();
+        } else {
+            textStatusLabel.setText("COMPUTER'S TURN");
+            textBigNumber.setText("—");
+            textTimer.setText("");
+            textFooterStatus.setText("Computer is filling its card…");
+            grid.setVisibility(View.INVISIBLE);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (resultShown || humanTurn) return;
+                game.getComputer().getCard().autoFillRemaining();
+                computerCardDone = true;
+                textStatusLabel.setText("COMPUTER FINISHED");
+                textFooterStatus.setText("Computer has finished. Press Next Player when ready.");
+                btnNextPlayer.setText("NEXT: YOU");
+                btnNextPlayer.setVisibility(View.VISIBLE);
+            }, COMPUTER_TURN_DELAY);
+        }
+    }
+
+    private void startHumanTimer() {
+        if (fillTimer != null) fillTimer.cancel();
+        grid.setVisibility(View.VISIBLE);
+        fillTimer = new CountDownTimer(FILL_MILLIS, 1000) {
+            @Override public void onTick(long remaining) {
+                int seconds = (int) (remaining / 1000);
+                textTimer.setText(String.format("Time Left: %d:%02d", seconds / 60, seconds % 60));
+            }
+
+            @Override public void onFinish() {
+                textTimer.setText("Time Left: 0:00");
+                finishHumanTurn();
+            }
+        }.start();
+    }
+
+    private void finishHumanTurn() {
+        if (!humanTurn || humanCardDone) return;
+        if (fillTimer != null) { fillTimer.cancel(); fillTimer = null; }
+        BingoCard card = game.getHuman().getCard();
+        if (!card.isComplete()) card.autoFillRemaining();
+        humanCardDone = true;
+        refreshGridFromCard(card);
+        textStatusLabel.setText("YOU FINISHED");
+        textBigNumber.setText("✓");
+        textFooterStatus.setText("Your card is locked. Press Next Player for the computer's turn.");
+        btnNextPlayer.setText("NEXT: COMPUTER");
+        btnNextPlayer.setVisibility(View.VISIBLE);
+    }
+
+    private void advanceToNextTurn() {
+        if (resultShown || callingStarted) return;
+
+        if (humanTurn && humanCardDone) {
+            beginTurn(false);
+            return;
+        }
+
+        if (!humanTurn && computerCardDone) {
+            if (humanCardDone) {
+                startCallingPhase();
+            } else {
+                beginTurn(true);
+            }
+        }
     }
 
     private void buildGrid() {
@@ -96,88 +193,52 @@ public class ComputerGameActivity extends AppCompatActivity {
         }
     }
 
-    private void startFillingPhase() {
-        textStatusLabel.setText("Fill Your Bingo Card");
-        textFooterStatus.setText("Tap cells to place 1 → 25");
-        updateNextNumberDisplay();
-
-        fillTimer = new CountDownTimer(FILL_MILLIS, 1000) {
-            @Override public void onTick(long remaining) {
-                int seconds = (int) (remaining / 1000);
-                textTimer.setText(String.format("Time Left: %d:%02d", seconds / 60, seconds % 60));
-            }
-
-            @Override public void onFinish() {
-                textTimer.setText("Time Left: 0:00");
-                if (!game.getHuman().getCard().isComplete()) {
-                    game.getHuman().getCard().autoFillRemaining();
-                    refreshGridFromCard(game.getHuman().getCard());
-                }
-                beginCallingPhase();
-            }
-        }.start();
-    }
-
-    private void onCellTapped(int row, int col) {
-        if (resultShown) return;
-        if (game.getState() == GameState.CALLING) {
-            onCellTappedDuringCalling(row, col);
-        } else if (game.getState() == GameState.FILLING) {
-            onCellTappedDuringFilling(row, col);
+    private void clearVisibleGrid() {
+        for (int r = 0; r < 5; r++) for (int c = 0; c < 5; c++) {
+            cellViews[r][c].setText("");
+            cellViews[r][c].setBackgroundColor(getColor(R.color.bg_cell));
         }
     }
 
-    private void onCellTappedDuringFilling(int row, int col) {
+    private void onCellTapped(int row, int col) {
+        if (resultShown || callingStarted || !humanTurn) return;
         BingoCard card = game.getHuman().getCard();
         if (card.isComplete()) return;
-
         int next = card.getNextNumberToPlace();
         if (card.placeNumber(row, col, next)) {
             sound.playPlace();
             cellViews[row][col].setText(String.valueOf(next));
-            updateNextNumberDisplay();
-            if (card.isComplete()) {
-                textFooterStatus.setText("Card complete — starting Bingo!");
-                if (fillTimer != null) fillTimer.cancel();
-                beginCallingPhase();
-            }
+            textBigNumber.setText(next < 25 ? String.valueOf(next + 1) : "✓");
+            if (card.isComplete()) finishHumanTurn();
         }
-    }
-
-    private void updateNextNumberDisplay() {
-        int next = game.getHuman().getCard().getNextNumberToPlace();
-        textBigNumber.setText(next <= BingoCard.MAX_NUMBER ? String.valueOf(next) : "✓");
     }
 
     private void refreshGridFromCard(BingoCard card) {
-        for (int r = 0; r < 5; r++) {
-            for (int c = 0; c < 5; c++) {
-                cellViews[r][c].setText(String.valueOf(card.getValue(r, c)));
-                cellViews[r][c].setBackgroundColor(getColor(R.color.bg_cell));
-            }
+        grid.setVisibility(View.VISIBLE);
+        for (int r = 0; r < 5; r++) for (int c = 0; c < 5; c++) {
+            cellViews[r][c].setText(String.valueOf(card.getValue(r, c)));
+            cellViews[r][c].setBackgroundColor(getColor(R.color.bg_cell));
         }
     }
 
-    private void beginCallingPhase() {
-        if (callingStarted || resultShown || game.getState() != GameState.FILLING) return;
+    private void startCallingPhase() {
+        if (callingStarted || resultShown || !humanCardDone || !computerCardDone) return;
         callingStarted = true;
+        if (fillTimer != null) { fillTimer.cancel(); fillTimer = null; }
         game.startCallingPhase();
-
-        textStatusLabel.setText("Bingo Round — YOU vs COMPUTER");
+        btnNextPlayer.setVisibility(View.GONE);
+        textStatusLabel.setText("BINGO ROUND — YOU vs COMPUTER");
         textTimer.setText("");
         textBigNumber.setText("—");
         calledNumbersRow.removeAllViews();
         calledScroll.setVisibility(View.VISIBLE);
-        textFooterStatus.setText("Waiting for next number...");
+        textFooterStatus.setText("Numbers will be called automatically.");
 
         callRunnable = new Runnable() {
             @Override public void run() {
                 if (resultShown || game.getState() != GameState.CALLING) return;
                 Integer number = game.callNextNumber();
-                if (number == null) {
-                    finishDraw();
-                    return;
-                }
+                if (number == null) { finishDraw(); return; }
                 onNumberCalled(number);
                 if (!resultShown) callHandler.postDelayed(this, CALL_INTERVAL_MILLIS);
             }
@@ -204,40 +265,27 @@ public class ComputerGameActivity extends AppCompatActivity {
             finishRound(humanWon, humanWon ? humanWin : computerWin);
             return;
         }
-
-        textFooterStatus.setText(autoMark
-                ? "Marked automatically"
-                : "Tap a called number on your card to mark it");
+        textFooterStatus.setText(autoMark ? "Marked automatically" : "Tap a called number on your card to mark it");
     }
 
     private void highlightIfPresent(int number) {
         BingoCard card = game.getHuman().getCard();
-        for (int r = 0; r < 5; r++) {
-            for (int c = 0; c < 5; c++) {
-                if (card.getValue(r, c) == number && !card.isMarked(r, c)) {
-                    cellViews[r][c].setBackgroundColor(getColor(R.color.cell_called));
-                }
-            }
-        }
+        for (int r = 0; r < 5; r++) for (int c = 0; c < 5; c++)
+            if (card.getValue(r, c) == number && !card.isMarked(r, c))
+                cellViews[r][c].setBackgroundColor(getColor(R.color.cell_called));
     }
 
     private void recolorCell(int number) {
         BingoCard card = game.getHuman().getCard();
-        for (int r = 0; r < 5; r++) {
-            for (int c = 0; c < 5; c++) {
-                if (card.getValue(r, c) == number) {
-                    cellViews[r][c].setBackgroundColor(getColor(R.color.cell_marked));
-                }
-            }
-        }
+        for (int r = 0; r < 5; r++) for (int c = 0; c < 5; c++)
+            if (card.getValue(r, c) == number)
+                cellViews[r][c].setBackgroundColor(getColor(R.color.cell_marked));
     }
 
     private void onCellTappedDuringCalling(int row, int col) {
         BingoCard card = game.getHuman().getCard();
         int value = card.getValue(row, col);
-        if (value == 0 || card.isMarked(row, col)) return;
-        if (!game.calledSoFar().contains(value)) return;
-
+        if (value == 0 || card.isMarked(row, col) || !game.calledSoFar().contains(value)) return;
         if (card.markNumber(value)) {
             recolorCell(value);
             BingoValidator.WinResult humanWin = game.checkHumanWin();
@@ -251,8 +299,7 @@ public class ComputerGameActivity extends AppCompatActivity {
         chip.setTextColor(getColor(R.color.bg_deep));
         chip.setBackgroundColor(getColor(R.color.accent_gold));
         chip.setPadding(24, 12, 24, 12);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
         lp.setMargins(6, 0, 6, 0);
         chip.setLayoutParams(lp);
         calledNumbersRow.addView(chip);
@@ -266,9 +313,7 @@ public class ComputerGameActivity extends AppCompatActivity {
         callHandler.removeCallbacksAndMessages(null);
         if (fillTimer != null) fillTimer.cancel();
         sound.playWin();
-
-        int numbersCalled = game.calledSoFar().size();
-        new StatsManager(this).recordComputerGame(humanWon, numbersCalled);
+        new StatsManager(this).recordComputerGame(humanWon, game.calledSoFar().size());
         adManager.showInterstitialIfReady(this);
 
         Intent intent = new Intent(this, ResultActivity.class);
@@ -284,9 +329,7 @@ public class ComputerGameActivity extends AppCompatActivity {
         resultShown = true;
         game.finish();
         callHandler.removeCallbacksAndMessages(null);
-        if (fillTimer != null) fillTimer.cancel();
         new StatsManager(this).recordComputerGame(false, game.calledSoFar().size());
-
         Intent intent = new Intent(this, ResultActivity.class);
         intent.putExtra("winnerName", "No winner");
         intent.putExtra("pattern", "No Bingo — all 25 numbers called");
