@@ -2,6 +2,7 @@
   "expo": {
     "name": "Bingo 1–25",
     "slug": "bingo",
+    "owner": "Kaztral-ar",
     "version": "1.0.1",
     "platforms": ["android"],
     "extra": {
