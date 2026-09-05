@@ -8,6 +8,7 @@ admin.initializeApp();
 const db = admin.database();
 
 const FILL_SECONDS = 120;
+const CALL_INTERVAL_MS = 2500;
 
 function shuffledDeck() {
   const nums = Array.from({ length: 25 }, (_, i) => i + 1);
@@ -21,7 +22,6 @@ function shuffledDeck() {
 function normalizeCard(card) {
   const used = new Set();
   const grid = Array.from({ length: 5 }, () => Array(5).fill(0));
-
   if (Array.isArray(card)) {
     for (let r = 0; r < 5; r++) {
       for (let c = 0; c < 5; c++) {
@@ -33,7 +33,6 @@ function normalizeCard(card) {
       }
     }
   }
-
   let candidate = 1;
   for (let r = 0; r < 5; r++) {
     for (let c = 0; c < 5; c++) {
@@ -53,6 +52,26 @@ function emptyMarks() {
   return Array.from({ length: 5 }, () => Array(5).fill(false));
 }
 
+async function transitionToCalling(roomCode) {
+  const roomRef = db.ref(`rooms/${roomCode}`);
+  const result = await roomRef.transaction((current) => {
+    if (!current || current.status !== "filling") return;
+    if (!current.fillDeadline || current.fillDeadline > Date.now()) return;
+    current.calledNumbers = [];
+    current.currentIndex = 0;
+    current.status = "calling";
+    current.winnerUid = null;
+    current.winningPattern = null;
+    return current;
+  });
+
+  if (result.committed) {
+    await db.ref(`privateSequences/${roomCode}`).set(shuffledDeck());
+    await db.ref(`rooms/${roomCode}/startCallingRequests`).remove();
+  }
+  return result.committed;
+}
+
 exports.onRoomStatusChange = onValueWritten("/rooms/{roomCode}/status", async (event) => {
   if (event.data.after.val() !== "filling") return null;
   const roomRef = db.ref(`rooms/${event.params.roomCode}`);
@@ -60,75 +79,80 @@ exports.onRoomStatusChange = onValueWritten("/rooms/{roomCode}/status", async (e
   return null;
 });
 
-// Deadline enforcement is server-side. The scheduler can be up to about a minute late.
+// The client asks at exactly 2:00. This avoids the old one-minute scheduler delay.
+exports.requestCalling = onValueWritten("/rooms/{roomCode}/startCallingRequests/{uid}", async (event) => {
+  if (!event.data.after.exists()) return null;
+  const { roomCode, uid } = event.params;
+  const roomSnap = await db.ref(`rooms/${roomCode}`).get();
+  const room = roomSnap.val();
+  if (!room || room.status !== "filling" || room.host !== uid) return null;
+  await transitionToCalling(roomCode);
+  return null;
+});
+
+// Scheduler is a fallback if the host app is closed at the end of the fill phase.
 exports.sweepExpiredFillTimers = onSchedule("every 1 minutes", async () => {
   const now = Date.now();
   const snap = await db.ref("rooms").orderByChild("status").equalTo("filling").get();
   if (!snap.exists()) return null;
 
-  const updates = {};
-  const privateUpdates = {};
-
-  snap.forEach((roomSnap) => {
-    const room = roomSnap.val();
-    if (!room.fillDeadline || room.fillDeadline > now) return;
-
-    const roomCode = roomSnap.key;
+  for (const roomSnap of snap.val() ? Object.keys(snap.val()) : []) {
+    const roomCode = roomSnap;
+    const room = (await db.ref(`rooms/${roomCode}`).get()).val();
+    if (!room || !room.fillDeadline || room.fillDeadline > now) continue;
     const deck = shuffledDeck();
+    const updates = {};
     updates[`${roomCode}/calledNumbers`] = [];
     updates[`${roomCode}/currentIndex`] = 0;
     updates[`${roomCode}/status`] = "calling";
-    updates[`${roomCode}/officialSequence`] = null;
-    privateUpdates[roomCode] = deck;
-
+    updates[`${roomCode}/winnerUid`] = null;
+    updates[`${roomCode}/winningPattern`] = null;
     Object.entries(room.players || {}).forEach(([uid, player]) => {
       updates[`${roomCode}/players/${uid}/card`] = normalizeCard(player.card);
       updates[`${roomCode}/players/${uid}/cardLocked`] = true;
       updates[`${roomCode}/players/${uid}/marked`] = emptyMarks();
     });
-  });
-
-  if (Object.keys(updates).length) await db.ref("rooms").update(updates);
-  if (Object.keys(privateUpdates).length) await db.ref("privateSequences").update(privateUpdates);
+    await db.ref("rooms").update(updates);
+    await db.ref(`privateSequences/${roomCode}`).set(deck);
+  }
   return null;
 });
 
-// One authoritative number is released per scheduler tick. Clients receive it immediately via RTDB.
-exports.tickCalledNumbers = onSchedule("every 1 minutes", async () => {
-  const snap = await db.ref("rooms").orderByChild("status").equalTo("calling").get();
-  if (!snap.exists()) return null;
+async function releaseNextNumber(roomCode) {
+  const sequenceSnap = await db.ref(`privateSequences/${roomCode}`).get();
+  const sequence = sequenceSnap.val() || [];
+  if (!Array.isArray(sequence) || sequence.length !== 25) return false;
 
-  const updates = {};
-  for (const roomSnap of Object.values(snap.val() || {})) {
-    // handled below by iterating the actual snapshot
-  }
+  const roomRef = db.ref(`rooms/${roomCode}`);
+  const result = await roomRef.transaction((current) => {
+    if (!current || current.status !== "calling" || current.winnerUid) return;
+    const idx = Number.isInteger(current.currentIndex) ? current.currentIndex : 0;
+    const called = Array.isArray(current.calledNumbers) ? current.calledNumbers.slice() : [];
+    if (idx >= sequence.length || called.length >= 25) return;
 
-  const sequenceCache = {};
-  const rooms = [];
-  snap.forEach((roomSnap) => rooms.push(roomSnap));
+    const now = Date.now();
+    if (current.lastCallAt && now - Number(current.lastCallAt) < CALL_INTERVAL_MS) return;
+    const number = Number(sequence[idx]);
+    if (!Number.isInteger(number) || number < 1 || number > 25 || called.includes(number)) return;
 
-  for (const roomSnap of rooms) {
-    const roomCode = roomSnap.key;
-    const room = roomSnap.val();
-    if (room.winnerUid) continue;
+    called.push(number);
+    current.calledNumbers = called;
+    current.currentIndex = idx + 1;
+    current.lastCallAt = now;
+    return current;
+  });
+  return result.committed;
+}
 
-    if (!sequenceCache[roomCode]) {
-      const sequenceSnap = await db.ref(`privateSequences/${roomCode}`).get();
-      sequenceCache[roomCode] = sequenceSnap.val() || [];
-    }
-
-    const seq = sequenceCache[roomCode];
-    const idx = Number.isInteger(room.currentIndex) ? room.currentIndex : 0;
-    if (idx >= seq.length) continue;
-
-    const called = Array.isArray(room.calledNumbers) ? room.calledNumbers.slice() : [];
-    if (called.length >= 25) continue;
-    called.push(seq[idx]);
-    updates[`${roomCode}/calledNumbers`] = called;
-    updates[`${roomCode}/currentIndex`] = idx + 1;
-  }
-
-  if (Object.keys(updates).length) await db.ref("rooms").update(updates);
+// Real-time host requests replace the old one-number-per-minute gameplay.
+exports.requestNextNumber = onValueWritten("/rooms/{roomCode}/callRequests/{uid}", async (event) => {
+  if (!event.data.after.exists()) return null;
+  const { roomCode, uid } = event.params;
+  const roomSnap = await db.ref(`rooms/${roomCode}`).get();
+  const room = roomSnap.val();
+  if (!room || room.status !== "calling" || room.host !== uid) return null;
+  await releaseNextNumber(roomCode);
+  await db.ref(`rooms/${roomCode}/callRequests/${uid}`).remove();
   return null;
 });
 
@@ -148,7 +172,6 @@ function checkWin(marked) {
 
 exports.claimBingo = onValueWritten("/rooms/{roomCode}/claims/{uid}", async (event) => {
   if (!event.data.after.exists()) return null;
-
   const { roomCode, uid } = event.params;
   const roomRef = db.ref(`rooms/${roomCode}`);
   const roomSnap = await roomRef.get();
@@ -157,7 +180,6 @@ exports.claimBingo = onValueWritten("/rooms/{roomCode}/claims/{uid}", async (eve
 
   const player = (room.players || {})[uid];
   if (!player) return null;
-
   const card = normalizeCard(player.card);
   const calledSet = new Set(room.calledNumbers || []);
   const trueMarked = card.map((row) => row.map((num) => calledSet.has(num)));
