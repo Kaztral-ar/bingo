@@ -9,6 +9,7 @@ const db = admin.database();
 
 const FILL_SECONDS = 120;
 const CALL_INTERVAL_MS = 2500;
+const BINGO_LETTERS = ["B", "I", "N", "G", "O"];
 
 function shuffledDeck() {
   const nums = Array.from({ length: 25 }, (_, i) => i + 1);
@@ -52,6 +53,26 @@ function emptyMarks() {
   return Array.from({ length: 5 }, () => Array(5).fill(false));
 }
 
+function linesForMarks(marked) {
+  const lines = [];
+  const isMarked = (r, c) => !!(marked[r] && marked[r][c]);
+  for (let r = 0; r < 5; r++) {
+    if ([0, 1, 2, 3, 4].every((c) => isMarked(r, c))) lines.push(`R${r + 1}`);
+  }
+  for (let c = 0; c < 5; c++) {
+    if ([0, 1, 2, 3, 4].every((r) => isMarked(r, c))) lines.push(`C${c + 1}`);
+  }
+  if ([0, 1, 2, 3, 4].every((i) => isMarked(i, i))) lines.push("D1");
+  if ([0, 1, 2, 3, 4].every((i) => isMarked(i, 4 - i))) lines.push("D2");
+  return lines;
+}
+
+function lineDescription(line) {
+  if (line.startsWith("R")) return `Row ${Number(line.slice(1))}`;
+  if (line.startsWith("C")) return `Column ${Number(line.slice(1))}`;
+  return "Diagonal";
+}
+
 async function transitionToCalling(roomCode) {
   const roomRef = db.ref(`rooms/${roomCode}`);
   const result = await roomRef.transaction((current) => {
@@ -79,7 +100,6 @@ exports.onRoomStatusChange = onValueWritten("/rooms/{roomCode}/status", async (e
   return null;
 });
 
-// The client asks at exactly 2:00. This avoids the old one-minute scheduler delay.
 exports.requestCalling = onValueWritten("/rooms/{roomCode}/startCallingRequests/{uid}", async (event) => {
   if (!event.data.after.exists()) return null;
   const { roomCode, uid } = event.params;
@@ -90,14 +110,12 @@ exports.requestCalling = onValueWritten("/rooms/{roomCode}/startCallingRequests/
   return null;
 });
 
-// Scheduler is a fallback if the host app is closed at the end of the fill phase.
 exports.sweepExpiredFillTimers = onSchedule("every 1 minutes", async () => {
   const now = Date.now();
   const snap = await db.ref("rooms").orderByChild("status").equalTo("filling").get();
   if (!snap.exists()) return null;
 
-  for (const roomSnap of snap.val() ? Object.keys(snap.val()) : []) {
-    const roomCode = roomSnap;
+  for (const roomCode of Object.keys(snap.val() || {})) {
     const room = (await db.ref(`rooms/${roomCode}`).get()).val();
     if (!room || !room.fillDeadline || room.fillDeadline > now) continue;
     const deck = shuffledDeck();
@@ -111,6 +129,8 @@ exports.sweepExpiredFillTimers = onSchedule("every 1 minutes", async () => {
       updates[`${roomCode}/players/${uid}/card`] = normalizeCard(player.card);
       updates[`${roomCode}/players/${uid}/cardLocked`] = true;
       updates[`${roomCode}/players/${uid}/marked`] = emptyMarks();
+      updates[`${roomCode}/players/${uid}/completedLines`] = [];
+      updates[`${roomCode}/players/${uid}/bingoCount`] = 0;
     });
     await db.ref("rooms").update(updates);
     await db.ref(`privateSequences/${roomCode}`).set(deck);
@@ -141,10 +161,48 @@ async function releaseNextNumber(roomCode) {
     current.lastCallAt = now;
     return current;
   });
-  return result.committed;
+
+  if (!result.committed) return false;
+
+  // A called number is automatically marked on BOTH cards.
+  // A completed row/column/diagonal is counted once as the next B-I-N-G-O letter.
+  const room = result.snapshot.val();
+  const calledSet = new Set(room.calledNumbers || []);
+  const updates = {};
+  let winnerUid = null;
+  let winnerPattern = null;
+
+  for (const [uid, player] of Object.entries(room.players || {})) {
+    const card = normalizeCard(player.card);
+    const marked = card.map((row) => row.map((num) => calledSet.has(num)));
+    const completedNow = linesForMarks(marked);
+    const previous = Array.isArray(player.completedLines) ? player.completedLines : [];
+    const completed = [...new Set(previous.concat(completedNow))];
+    const bingoCount = Math.min(completed.length, BINGO_LETTERS.length);
+
+    updates[`rooms/${roomCode}/players/${uid}/marked`] = marked;
+    updates[`rooms/${roomCode}/players/${uid}/completedLines`] = completed;
+    updates[`rooms/${roomCode}/players/${uid}/bingoCount`] = bingoCount;
+
+    if (!winnerUid && bingoCount >= 5) {
+      winnerUid = uid;
+      const newest = completedNow.filter((line) => !previous.includes(line));
+      winnerPattern = newest.length > 0
+        ? lineDescription(newest[0])
+        : "BINGO";
+    }
+  }
+
+  if (winnerUid) {
+    updates[`rooms/${roomCode}/winnerUid`] = winnerUid;
+    updates[`rooms/${roomCode}/winningPattern`] = winnerPattern;
+    updates[`rooms/${roomCode}/status`] = "finished";
+  }
+
+  await db.ref().update(updates);
+  return true;
 }
 
-// Real-time host requests replace the old one-number-per-minute gameplay.
 exports.requestNextNumber = onValueWritten("/rooms/{roomCode}/callRequests/{uid}", async (event) => {
   if (!event.data.after.exists()) return null;
   const { roomCode, uid } = event.params;
@@ -156,42 +214,8 @@ exports.requestNextNumber = onValueWritten("/rooms/{roomCode}/callRequests/{uid}
   return null;
 });
 
-function checkWin(marked) {
-  if (!Array.isArray(marked) || marked.length !== 5) return null;
-  const isMarked = (r, c) => !!(marked[r] && marked[r][c]);
-  for (let r = 0; r < 5; r++) {
-    if ([0, 1, 2, 3, 4].every((c) => isMarked(r, c))) return `Row ${r + 1}`;
-  }
-  for (let c = 0; c < 5; c++) {
-    if ([0, 1, 2, 3, 4].every((r) => isMarked(r, c))) return `Column ${c + 1}`;
-  }
-  if ([0, 1, 2, 3, 4].every((i) => isMarked(i, i))) return "Diagonal";
-  if ([0, 1, 2, 3, 4].every((i) => isMarked(i, 4 - i))) return "Diagonal";
-  return null;
-}
-
 exports.claimBingo = onValueWritten("/rooms/{roomCode}/claims/{uid}", async (event) => {
-  if (!event.data.after.exists()) return null;
-  const { roomCode, uid } = event.params;
-  const roomRef = db.ref(`rooms/${roomCode}`);
-  const roomSnap = await roomRef.get();
-  const room = roomSnap.val();
-  if (!room || room.status !== "calling" || room.winnerUid) return null;
-
-  const player = (room.players || {})[uid];
-  if (!player) return null;
-  const card = normalizeCard(player.card);
-  const calledSet = new Set(room.calledNumbers || []);
-  const trueMarked = card.map((row) => row.map((num) => calledSet.has(num)));
-  const pattern = checkWin(trueMarked);
-  if (!pattern) return null;
-
-  await roomRef.transaction((current) => {
-    if (!current || current.status !== "calling" || current.winnerUid) return;
-    current.winnerUid = uid;
-    current.winningPattern = pattern;
-    current.status = "finished";
-    return current;
-  });
+  // Kept for backward compatibility with older clients. Winner state is now
+  // calculated automatically by requestNextNumber; clients no longer need to claim.
   return null;
 });
