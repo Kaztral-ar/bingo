@@ -6,65 +6,16 @@
     android:orientation="vertical"
     android:padding="12dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="BINGO 1–25"
-        android:textColor="@color/accent_gold"
-        android:textStyle="bold"
-        android:textSize="20sp"
-        android:gravity="center" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="BINGO 1–25" android:textColor="@color/accent_gold" android:textStyle="bold" android:textSize="20sp" android:gravity="center" />
+    <TextView android:id="@+id/textStatusLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="BOTH PLAYERS — FILL YOUR CARDS" android:textColor="@color/text_primary" android:textSize="16sp" android:gravity="center" android:layout_marginTop="6dp" />
+    <TextView android:id="@+id/textBigNumber" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="1" android:textColor="@color/accent_gold" android:textSize="42sp" android:textStyle="bold" android:gravity="center" android:layout_marginTop="2dp" />
+    <TextView android:id="@+id/textTimer" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Card Time: 2:00" android:textColor="@color/accent_coral" android:textSize="15sp" android:gravity="center" android:layout_marginBottom="4dp" />
 
-    <TextView
-        android:id="@+id/textStatusLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="BOTH PLAYERS — FILL YOUR CARDS"
-        android:textColor="@color/text_primary"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:layout_marginTop="6dp" />
-
-    <TextView
-        android:id="@+id/textBigNumber"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="1"
-        android:textColor="@color/accent_gold"
-        android:textSize="42sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginTop="2dp" />
-
-    <TextView
-        android:id="@+id/textTimer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Card Time: 2:00"
-        android:textColor="@color/accent_coral"
-        android:textSize="15sp"
-        android:gravity="center"
-        android:layout_marginBottom="4dp" />
-
-    <HorizontalScrollView
-        android:id="@+id/calledScroll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone">
-        <LinearLayout
-            android:id="@+id/calledNumbersRow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="2dp" />
+    <HorizontalScrollView android:id="@+id/calledScroll" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone">
+        <LinearLayout android:id="@+id/calledNumbersRow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="2dp" />
     </HorizontalScrollView>
 
-    <LinearLayout
-        android:id="@+id/bingoHeader"
-        android:layout_width="match_parent"
-        android:layout_height="34dp"
-        android:orientation="horizontal"
-        android:background="@color/accent_gold">
+    <LinearLayout android:id="@+id/bingoHeader" android:layout_width="match_parent" android:layout_height="34dp" android:orientation="horizontal" android:background="@color/accent_gold">
         <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="B" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
         <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="I" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
         <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="N" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
@@ -72,22 +23,11 @@
         <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="O" android:textColor="@color/white" android:textStyle="bold" android:textSize="18sp" android:gravity="center" />
     </LinearLayout>
 
-    <GridLayout
-        android:id="@+id/bingoGrid"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:layout_gravity="center_horizontal"
-        android:columnCount="5"
-        android:rowCount="5"
-        android:padding="2dp" />
+    <GridLayout android:id="@+id/bingoGrid" android:layout_width="300dp" android:layout_height="300dp" android:layout_gravity="center_horizontal" android:columnCount="5" android:rowCount="5" android:padding="2dp" />
 
-    <TextView
-        android:id="@+id/textFooterStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Tap the squares to place your numbers."
-        android:textColor="@color/text_secondary"
-        android:gravity="center"
-        android:padding="5dp" />
+    <TextView android:id="@+id/textFooterStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tap the squares to place your numbers." android:textColor="@color/text_secondary" android:gravity="center" android:padding="5dp" />
+
+    <!-- Kept hidden for compatibility with the online activity; no visible Call Number button. -->
+    <Button android:id="@+id/btnCallNumber" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
 
 </LinearLayout>
