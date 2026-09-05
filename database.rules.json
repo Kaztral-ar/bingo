@@ -14,8 +14,19 @@
         "calledNumbers": { ".write": false },
         "officialSequence": { ".write": false },
         "currentIndex": { ".write": false },
+        "lastCallAt": { ".write": false },
         "winnerUid": { ".write": false },
         "winningPattern": { ".write": false },
+        "startCallingRequests": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('host').val() === auth.uid && root.child('rooms').child($roomCode).child('status').val() === 'filling'"
+          }
+        },
+        "callRequests": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('host').val() === auth.uid && root.child('rooms').child($roomCode).child('status').val() === 'calling'"
+          }
+        },
         "claims": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($roomCode).child('status').val() === 'calling'"
